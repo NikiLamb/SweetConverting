@@ -1,2 +1,0 @@
-# Climbingshot
-Climbing shot website

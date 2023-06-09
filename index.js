@@ -4,9 +4,10 @@ import {GLTFLoader} from './three.js-master/three.js-master/examples/jsm/loaders
 const canvas = document.querySelector('canvas.webgl')
 const scene = new THREE.Scene()
 
-const loader = new GLTFLoader()
-loader.load('assets/Poe X-Wing.glb', function(glb){
+const loader = new GLTFLoader().setPath('./assets/')
+loader.load(poe_x_wing.glb, function(glb){
     console.log(glb)
+    scene.add(glb.scene)
 }, function(xhr){
     console.log((xhr.loaded/xhr.total * 100) + "% Loaded")
 }, function(error){

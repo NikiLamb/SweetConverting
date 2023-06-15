@@ -1,6 +1,6 @@
 import * as THREE from './three.js-master/three.js-master/build/three.module.js'
 import {GLTFLoader} from './three.js-master/three.js-master/examples/jsm/loaders/GLTFLoader.js'
-import { OrbitControls } from './three.js-master/three.js-master/examples/jsm/controls/OrbitControls.js'
+import {OrbitControls} from './three.js-master/three.js-master/examples/jsm/controls/OrbitControls.js'
 
 
 
@@ -24,6 +24,9 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 renderer.shadowMap.enabled = true
 renderer.gammaOutput = true
 
+const viewerContainer = document.getElementById('viewer-container')
+const models = []
+
 function loadGLBFile(event) {
     const file = event.target.files[0];
   
@@ -33,8 +36,12 @@ function loadGLBFile(event) {
   
       const loader = new GLTFLoader();
       loader.parse(data, '', function (glb) {
+        viewerContainer.appendChild(renderer.domElement);
         scene.add(glb.scene)
       });
+      models.push(scene);
+      console.log(models);
+      animate();
     };
   
     reader.readAsArrayBuffer(file);
@@ -45,9 +52,18 @@ loadButton.addEventListener('click', function () {
     const glbFileInput = document.getElementById('glb-file-input');
     glbFileInput.click();
 });
-  
+
 const glbFileInput = document.getElementById('glb-file-input');
 glbFileInput.addEventListener('change', loadGLBFile);
+
+function clearModels(){
+    while (viewerContainer.firstChild){
+        viewerContainer.removeChild(viewerContainer.firstChild);
+    }
+}
+
+const clearButton = document.getElementById('clear-models');
+clearButton.addEventListener('click', clearModels);
 
 const light = new THREE.DirectionalLight(0xffffff, 1)
 light.position.set(2,2,5)

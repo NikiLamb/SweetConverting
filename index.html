@@ -1,5 +1,6 @@
 <html lang="en">
     <head>
+        <link rel="stylesheet" href="main.css">
         <meta charset="UTF-8">
         <meta http-equic="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,12 +8,18 @@
     </head>
 
     <body>
-        <div id="viewer-container"></div>
-        <div>
-            <input type="file" id="glb-file-input" accept=".glb" style="display: none" />
-            <button id="load-button">Load GLB</button>
+        <div id="viewer-wrapper">
             <div id="viewer-container"></div>
-          </div>
+            <div id="button-container">
+                <div>
+                    <input type="file" id="glb-file-input" accept=".glb" style="display: none" />
+                    <button class="custom-button" id="load-button">Load GLB</button>
+                </div>
+                <div>
+                    <button class="custom-button" id="clear-models">Clear models</button>
+                </div>
+            </div>
+        </div>
         <canvas class = "webgl"></canvas>
         <script type="importmap">
             {

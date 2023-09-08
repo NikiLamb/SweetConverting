@@ -4,15 +4,14 @@ import {STLLoader} from './three.js-master/three.js-master/examples/jsm/loaders/
 import {OrbitControls} from './three.js-master/three.js-master/examples/jsm/controls/OrbitControls.js'
 
 
-
 const canvas = document.querySelector('canvas.webgl')
 const scene = new THREE.Scene()
 
-const canvasSizes = {
-    width: window.innerWidth - 16,
-    height: window.innerHeight - 16
-}
-const camera = new THREE.PerspectiveCamera(75, canvasSizes.width/canvasSizes.height, 0.01, 100)
+const camera = new THREE.PerspectiveCamera(75,
+    window.innerWidth/window.innerHeight,
+    0.01,
+    100
+)
 camera.position.set(.25,.25,.25)
 camera.lookAt(0,0,0)
 scene.add(camera)
@@ -20,7 +19,7 @@ scene.add(camera)
 const renderer = new THREE.WebGLRenderer({
     canvas: canvas
 })
-renderer.setSize(canvasSizes.width, canvasSizes.height)
+renderer.setSize(window.innerWidth, window.innerHeight)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 renderer.shadowMap.enabled = true
 renderer.gammaOutput = true
@@ -159,5 +158,13 @@ function animate(){
     requestAnimationFrame(animate)
     renderer.render( scene, camera )
 }
+
+function onWindowResize() {
+    camera.aspect = window.innerWidth/window.innerHeight
+    camera.updateProjectionMatric()
+    renderer.setSize(window.innerWidth, window.innerHeight)
+}
+
+window.addEventListener('resize', onWindowResize, false)
 
 animate()

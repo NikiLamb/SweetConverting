@@ -52,6 +52,9 @@ function loadGLBFile(event) {
             models.push(glbModel)
             scene.add(glbModel)
 
+            // Recenter camera on the loaded model
+            recenterCameraOnModel(glbModel)
+
             // Update conversion state
             updateConversionState('glb', glbModel)
 
@@ -96,6 +99,9 @@ function loadSTLFile(event) {
         models.push(stlModel)
         scene.add(stlModel)
 
+        // Recenter camera on the loaded model
+        recenterCameraOnModel(stlModel)
+
         // Update conversion state
         updateConversionState('stl', stlModel)
 
@@ -125,6 +131,9 @@ function loadUSDZFile(event) {
             
             models.push(usdzModel)
             scene.add(usdzModel)
+
+            // Recenter camera on the loaded model
+            recenterCameraOnModel(usdzModel)
 
             // Update conversion state
             updateConversionState('usdz', usdzModel)
@@ -217,6 +226,32 @@ controls.minDistance = .1
 controls.maxDistance = 50
 controls.target.set( 0, 0, - 0.2 )
 controls.update()
+
+// Function to recenter camera on loaded model
+function recenterCameraOnModel(model) {
+    // Calculate bounding box of the model
+    const box = new THREE.Box3().setFromObject(model)
+    const center = box.getCenter(new THREE.Vector3())
+    const size = box.getSize(new THREE.Vector3())
+    
+    // Get the max side of the bounding box to determine camera distance
+    const maxDim = Math.max(size.x, size.y, size.z)
+    const fov = camera.fov * (Math.PI / 180)
+    let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2))
+    
+    // Offset the camera position to ensure the model is fully visible
+    cameraZ *= 1.5 // Add some padding
+    
+    // Set camera position to look at the model from a good angle
+    camera.position.set(center.x + cameraZ * 0.5, center.y + cameraZ * 0.5, center.z + cameraZ)
+    camera.lookAt(center)
+    
+    // Update controls target to the center of the model
+    controls.target.copy(center)
+    controls.update()
+    
+    console.log('Camera recentered on model:', { center, size, cameraZ })
+}
 
 function animate(){
     requestAnimationFrame(animate)

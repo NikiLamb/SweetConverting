@@ -62,16 +62,6 @@ function loadGLBFile(event) {
     reader.readAsArrayBuffer(file)
   }
 
-//Load a GLB file in the Viewer
-const glbLoadButton = document.getElementById('glb-load-button')
-glbLoadButton.addEventListener('click', function () {
-    const glbFileInput = document.getElementById('glb-file-input')
-    glbFileInput.click()
-});
-
-const glbFileInput = document.getElementById('glb-file-input')
-glbFileInput.addEventListener('change', loadGLBFile)
-
 //STL Loader
 function loadSTLFile(event) {
     const file = event.target.files[0];
@@ -115,15 +105,32 @@ function loadSTLFile(event) {
     reader.readAsArrayBuffer(file)
   }
 
-//Load a STL file in the Viewer
-const stlLoadButton = document.getElementById('stl-load-button')
-stlLoadButton.addEventListener('click', function () {
-    const stlFileInput = document.getElementById('stl-file-input')
-    stlFileInput.click()
+//Unified model loader - detects file type and calls appropriate loader
+function loadModelFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const fileName = file.name.toLowerCase();
+    
+    if (fileName.endsWith('.glb')) {
+        loadGLBFile(event);
+    } else if (fileName.endsWith('.stl')) {
+        loadSTLFile(event);
+    } else {
+        console.error('Unsupported file type. Please select a GLB or STL file.');
+        alert('Unsupported file type. Please select a GLB or STL file.');
+    }
+}
+
+//Load a model file in the Viewer
+const modelLoadButton = document.getElementById('model-load-button')
+modelLoadButton.addEventListener('click', function () {
+    const modelFileInput = document.getElementById('model-file-input')
+    modelFileInput.click()
 });
 
-const stlFileInput = document.getElementById('stl-file-input')
-stlFileInput.addEventListener('change', loadSTLFile)
+const modelFileInput = document.getElementById('model-file-input')
+modelFileInput.addEventListener('change', loadModelFile)
 
 //Clear Any kind of models in the Viewer
 function clearModels(){

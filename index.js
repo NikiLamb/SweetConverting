@@ -107,14 +107,21 @@ function loadSTLFile(event) {
 
 //Unified model loader - detects file type and calls appropriate loader
 function loadModelFile(event) {
+    console.log('loadModelFile called', event)
     const file = event.target.files[0];
-    if (!file) return;
+    if (!file) {
+        console.log('No file selected')
+        return;
+    }
     
+    console.log('File selected:', file.name, 'Size:', file.size, 'Type:', file.type)
     const fileName = file.name.toLowerCase();
     
     if (fileName.endsWith('.glb')) {
+        console.log('Loading GLB file')
         loadGLBFile(event);
     } else if (fileName.endsWith('.stl')) {
+        console.log('Loading STL file')
         loadSTLFile(event);
     } else {
         console.error('Unsupported file type. Please select a GLB or STL file.');
@@ -123,14 +130,7 @@ function loadModelFile(event) {
 }
 
 //Load a model file in the Viewer
-const modelLoadButton = document.getElementById('model-load-button')
-modelLoadButton.addEventListener('click', function () {
-    const modelFileInput = document.getElementById('model-file-input')
-    modelFileInput.click()
-});
-
-const modelFileInput = document.getElementById('model-file-input')
-modelFileInput.addEventListener('change', loadModelFile)
+// Moved to initializeMainUI function for proper DOM ready handling
 
 //Clear Any kind of models in the Viewer
 function clearModels(){
@@ -142,7 +142,9 @@ function clearModels(){
     models.length = 0
     
     // Hide conversion section when models are cleared
-    conversionSection.style.display = 'none'
+    if (conversionSection) {
+        conversionSection.style.display = 'none'
+    }
     currentModel = null
     currentLoadedFileType = null
     
@@ -150,9 +152,6 @@ function clearModels(){
     console.log(models)
     animate()
 }
-
-const clearButton = document.getElementById('clear-models')
-clearButton.addEventListener('click', clearModels)
 
 const light1 = new THREE.DirectionalLight(0xffffff, 1)
 scene.add(light1)
@@ -228,6 +227,7 @@ const exporters = {
 
 // UI Elements - wrapped in DOM ready check
 let conversionSection, formatSelector, convertButton, conversionStatus
+let modelLoadButton, modelFileInput, clearButton
 
 // Alternative fallback for module scripts that might load after DOMContentLoaded
 if (document.readyState === 'loading') {
@@ -237,16 +237,35 @@ if (document.readyState === 'loading') {
 }
 
 function initializeUI() {
+    // Initialize main UI elements
+    modelLoadButton = document.getElementById('model-load-button')
+    modelFileInput = document.getElementById('model-file-input')
+    clearButton = document.getElementById('clear-models')
+    
+    // Initialize conversion UI elements
     conversionSection = document.getElementById('conversion-section')
     formatSelector = document.getElementById('format-selector')
     convertButton = document.getElementById('convert-button')
     conversionStatus = document.getElementById('conversion-status')
     
-    if (conversionSection && formatSelector && convertButton && conversionStatus) {
-        setupEventListeners()
-        console.log('UI elements initialized successfully')
+    // Check if main UI elements are found
+    if (modelLoadButton && modelFileInput && clearButton) {
+        setupMainEventListeners()
+        console.log('Main UI elements initialized successfully')
     } else {
-        console.error('Failed to find UI elements:', {
+        console.error('Failed to find main UI elements:', {
+            modelLoadButton: !!modelLoadButton,
+            modelFileInput: !!modelFileInput,
+            clearButton: !!clearButton
+        })
+    }
+    
+    // Check if conversion UI elements are found
+    if (conversionSection && formatSelector && convertButton && conversionStatus) {
+        setupConversionEventListeners()
+        console.log('Conversion UI elements initialized successfully')
+    } else {
+        console.error('Failed to find conversion UI elements:', {
             conversionSection: !!conversionSection,
             formatSelector: !!formatSelector,
             convertButton: !!convertButton,
@@ -255,7 +274,23 @@ function initializeUI() {
     }
 }
 
-function setupEventListeners() {
+function setupMainEventListeners() {
+    // Model load button event listener
+    modelLoadButton.addEventListener('click', function () {
+        console.log('Load model button clicked!')
+        modelFileInput.click()
+    });
+    
+    // Model file input change listener
+    modelFileInput.addEventListener('change', loadModelFile)
+    
+    // Clear button event listener
+    clearButton.addEventListener('click', clearModels)
+    
+    console.log('Main event listeners set up successfully')
+}
+
+function setupConversionEventListeners() {
     // Format selector change handler
     formatSelector.addEventListener('change', function() {
         convertButton.disabled = !formatSelector.value

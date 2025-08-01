@@ -127,10 +127,7 @@ stlFileInput.addEventListener('change', loadSTLFile)
 
 //Clear Any kind of models in the Viewer
 function clearModels(){
-    while (viewerContainer.firstChild){
-        viewerContainer.firstChild.remove()
-    }
-
+    // Remove models from the scene but keep the renderer's DOM element
     for (let i = 0; i < models.length; i++) {
         scene.remove(models[i])
     }

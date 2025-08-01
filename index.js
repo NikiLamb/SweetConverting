@@ -43,7 +43,10 @@ function loadGLBFile(event) {
   
         const glbLoader = new GLTFLoader()
         glbLoader.parse(data, '', function (glb) {
-            viewerContainer.appendChild(renderer.domElement)
+            // Only append renderer if it's not already in the container
+            if (!viewerContainer.contains(renderer.domElement)) {
+                viewerContainer.appendChild(renderer.domElement)
+            }
             const glbModel = glb.scene
             models.push(glbModel)
             scene.add(glbModel)
@@ -78,36 +81,38 @@ function loadSTLFile(event) {
         const data = reader.result
   
         const stlLoader = new STLLoader()
-        stlLoader.load(data, function (geometry) {
+        const geometry = stlLoader.parse(data)
 
-            let stlMaterial
-            if (geometry.hasColors) {
-                geometry.computeVertexNormals()
-                stlMaterial = new THREE.MeshPhongMaterial({ opacity: geometry.alpha, vertexColors: true });
-            } else {
-                stlMaterial = new THREE.MeshStandardMaterial({color: 0x808080})
-            }
-            const stlModel = new THREE.Mesh(geometry, stlMaterial)
+        let stlMaterial
+        if (geometry.hasColors) {
+            geometry.computeVertexNormals()
+            stlMaterial = new THREE.MeshPhongMaterial({ opacity: geometry.alpha, vertexColors: true });
+        } else {
+            stlMaterial = new THREE.MeshStandardMaterial({color: 0x808080})
+        }
+        const stlModel = new THREE.Mesh(geometry, stlMaterial)
 
-            //scale down by 10 the model
-            stlModel.scale.set(0.1, 0.1, 0.1)
+        //scale down by 10 the model
+        stlModel.scale.set(0.1, 0.1, 0.1)
 
-            //Pivot 90 degrees around the Y axis
-            stlModel.rotateX(- Math.PI / 2)
+        //Pivot 90 degrees around the Y axis
+        stlModel.rotateX(- Math.PI / 2)
 
+        // Only append renderer if it's not already in the container
+        if (!viewerContainer.contains(renderer.domElement)) {
             viewerContainer.appendChild(renderer.domElement)
-            models.push(stlModel)
-            scene.add(stlModel)
+        }
+        models.push(stlModel)
+        scene.add(stlModel)
 
-            // Update conversion state
-            updateConversionState('stl', stlModel)
+        // Update conversion state
+        updateConversionState('stl', stlModel)
 
-            console.log("STL Model added")
-            animate()
-        })
+        console.log("STL Model added")
+        animate()
     }
   
-    reader.readAsDataURL(file)
+    reader.readAsArrayBuffer(file)
   }
 
 //Load a STL file in the Viewer
@@ -217,14 +222,74 @@ const exporters = {
     usdz: new USDZExporter()
 }
 
-// UI Elements
-const conversionSection = document.getElementById('conversion-section')
-const formatSelector = document.getElementById('format-selector')
-const convertButton = document.getElementById('convert-button')
-const conversionStatus = document.getElementById('conversion-status')
+// UI Elements - wrapped in DOM ready check
+let conversionSection, formatSelector, convertButton, conversionStatus
+
+// Alternative fallback for module scripts that might load after DOMContentLoaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeUI)
+} else {
+    initializeUI()
+}
+
+function initializeUI() {
+    conversionSection = document.getElementById('conversion-section')
+    formatSelector = document.getElementById('format-selector')
+    convertButton = document.getElementById('convert-button')
+    conversionStatus = document.getElementById('conversion-status')
+    
+    if (conversionSection && formatSelector && convertButton && conversionStatus) {
+        setupEventListeners()
+        console.log('UI elements initialized successfully')
+    } else {
+        console.error('Failed to find UI elements:', {
+            conversionSection: !!conversionSection,
+            formatSelector: !!formatSelector,
+            convertButton: !!convertButton,
+            conversionStatus: !!conversionStatus
+        })
+    }
+}
+
+function setupEventListeners() {
+    // Format selector change handler
+    formatSelector.addEventListener('change', function() {
+        convertButton.disabled = !formatSelector.value
+    })
+
+    // Convert button handler
+    convertButton.addEventListener('click', async function() {
+        const selectedFormat = formatSelector.value
+        if (!selectedFormat || !currentModel) return
+
+        convertButton.disabled = true
+        conversionStatus.textContent = 'Converting...'
+
+        try {
+            await exportModel(currentModel, selectedFormat)
+            conversionStatus.textContent = 'Conversion completed!'
+            setTimeout(() => {
+                conversionStatus.textContent = ''
+            }, 3000)
+        } catch (error) {
+            conversionStatus.textContent = 'Conversion failed!'
+            console.error('Export error:', error)
+            setTimeout(() => {
+                conversionStatus.textContent = ''
+            }, 3000)
+        } finally {
+            convertButton.disabled = false
+        }
+    })
+}
 
 // Update format selector based on loaded file type
 function updateFormatSelector(fileType) {
+    if (!formatSelector || !conversionSection) {
+        console.error('UI elements not initialized yet')
+        return
+    }
+    
     formatSelector.innerHTML = '<option value="">Select format...</option>'
     
     if (formatMappings[fileType]) {
@@ -245,40 +310,15 @@ function updateConversionState(fileType, model) {
     currentLoadedFileType = fileType
     currentModel = model
     updateFormatSelector(fileType)
-    convertButton.disabled = true
-    formatSelector.value = ''
-    conversionStatus.textContent = ''
+    
+    if (convertButton && formatSelector && conversionStatus) {
+        convertButton.disabled = true
+        formatSelector.value = ''
+        conversionStatus.textContent = ''
+    }
 }
 
-// Format selector change handler
-formatSelector.addEventListener('change', function() {
-    convertButton.disabled = !formatSelector.value
-})
 
-// Convert button handler
-convertButton.addEventListener('click', async function() {
-    const selectedFormat = formatSelector.value
-    if (!selectedFormat || !currentModel) return
-
-    convertButton.disabled = true
-    conversionStatus.textContent = 'Converting...'
-
-    try {
-        await exportModel(currentModel, selectedFormat)
-        conversionStatus.textContent = 'Conversion completed!'
-        setTimeout(() => {
-            conversionStatus.textContent = ''
-        }, 3000)
-    } catch (error) {
-        conversionStatus.textContent = 'Conversion failed!'
-        console.error('Export error:', error)
-        setTimeout(() => {
-            conversionStatus.textContent = ''
-        }, 3000)
-    } finally {
-        convertButton.disabled = false
-    }
-})
 
 // Export function
 async function exportModel(model, format) {

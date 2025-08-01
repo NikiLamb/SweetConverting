@@ -2,6 +2,12 @@ import * as THREE from 'three'
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js'
 import {STLLoader} from 'three/addons/loaders/STLLoader.js'
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js'
+// Import exporters
+import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js'
+import {OBJExporter} from 'three/addons/exporters/OBJExporter.js'
+import {PLYExporter} from 'three/addons/exporters/PLYExporter.js'
+import {STLExporter} from 'three/addons/exporters/STLExporter.js'
+import {USDZExporter} from 'three/addons/exporters/USDZExporter.js'
 
 
 const canvas = document.querySelector('canvas.webgl')
@@ -41,6 +47,9 @@ function loadGLBFile(event) {
             const glbModel = glb.scene
             models.push(glbModel)
             scene.add(glbModel)
+
+            // Update conversion state
+            updateConversionState('glb', glbModel)
 
             console.log("GLB Model added")
             animate()
@@ -90,6 +99,9 @@ function loadSTLFile(event) {
             models.push(stlModel)
             scene.add(stlModel)
 
+            // Update conversion state
+            updateConversionState('stl', stlModel)
+
             console.log("STL Model added")
             animate()
         })
@@ -119,6 +131,12 @@ function clearModels(){
     }
 
     models.length = 0
+    
+    // Hide conversion section when models are cleared
+    conversionSection.style.display = 'none'
+    currentModel = null
+    currentLoadedFileType = null
+    
     console.log("Model removed")
     console.log(models)
     animate()
@@ -168,3 +186,163 @@ function onWindowResize() {
 window.addEventListener('resize', onWindowResize, false)
 
 animate()
+
+// Conversion System
+let currentLoadedFileType = null
+let currentModel = null
+
+// Format mapping based on loaded file type
+const formatMappings = {
+    'glb': [
+        { value: 'obj', label: 'OBJ (.obj)' },
+        { value: 'ply', label: 'PLY (.ply)' },
+        { value: 'stl', label: 'STL (.stl)' },
+        { value: 'usdz', label: 'USDZ (.usdz)' },
+        { value: 'gltf', label: 'GLTF (.gltf)' }
+    ],
+    'stl': [
+        { value: 'obj', label: 'OBJ (.obj)' },
+        { value: 'ply', label: 'PLY (.ply)' },
+        { value: 'glb', label: 'GLB (.glb)' },
+        { value: 'usdz', label: 'USDZ (.usdz)' }
+    ]
+}
+
+// Initialize exporters
+const exporters = {
+    gltf: new GLTFExporter(),
+    obj: new OBJExporter(),
+    ply: new PLYExporter(),
+    stl: new STLExporter(),
+    usdz: new USDZExporter()
+}
+
+// UI Elements
+const conversionSection = document.getElementById('conversion-section')
+const formatSelector = document.getElementById('format-selector')
+const convertButton = document.getElementById('convert-button')
+const conversionStatus = document.getElementById('conversion-status')
+
+// Update format selector based on loaded file type
+function updateFormatSelector(fileType) {
+    formatSelector.innerHTML = '<option value="">Select format...</option>'
+    
+    if (formatMappings[fileType]) {
+        formatMappings[fileType].forEach(format => {
+            const option = document.createElement('option')
+            option.value = format.value
+            option.textContent = format.label
+            formatSelector.appendChild(option)
+        })
+        conversionSection.style.display = 'block'
+    } else {
+        conversionSection.style.display = 'none'
+    }
+}
+
+// Show/hide conversion section and update current model
+function updateConversionState(fileType, model) {
+    currentLoadedFileType = fileType
+    currentModel = model
+    updateFormatSelector(fileType)
+    convertButton.disabled = true
+    formatSelector.value = ''
+    conversionStatus.textContent = ''
+}
+
+// Format selector change handler
+formatSelector.addEventListener('change', function() {
+    convertButton.disabled = !formatSelector.value
+})
+
+// Convert button handler
+convertButton.addEventListener('click', async function() {
+    const selectedFormat = formatSelector.value
+    if (!selectedFormat || !currentModel) return
+
+    convertButton.disabled = true
+    conversionStatus.textContent = 'Converting...'
+
+    try {
+        await exportModel(currentModel, selectedFormat)
+        conversionStatus.textContent = 'Conversion completed!'
+        setTimeout(() => {
+            conversionStatus.textContent = ''
+        }, 3000)
+    } catch (error) {
+        conversionStatus.textContent = 'Conversion failed!'
+        console.error('Export error:', error)
+        setTimeout(() => {
+            conversionStatus.textContent = ''
+        }, 3000)
+    } finally {
+        convertButton.disabled = false
+    }
+})
+
+// Export function
+async function exportModel(model, format) {
+    const exporter = exporters[format === 'glb' ? 'gltf' : format]
+    if (!exporter) {
+        throw new Error(`Exporter for ${format} not found`)
+    }
+
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-')
+    const filename = `model_${timestamp}.${format}`
+
+    switch (format) {
+        case 'glb':
+        case 'gltf':
+            return new Promise((resolve, reject) => {
+                const options = format === 'glb' ? { binary: true } : { binary: false }
+                exporter.parse(model, (result) => {
+                    if (format === 'glb') {
+                        downloadFile(result, filename, 'application/octet-stream')
+                    } else {
+                        const output = JSON.stringify(result, null, 2)
+                        downloadFile(output, filename, 'application/json')
+                    }
+                    resolve()
+                }, reject, options)
+            })
+
+        case 'obj':
+            const objResult = exporter.parse(model)
+            downloadFile(objResult, filename, 'text/plain')
+            break
+
+        case 'ply':
+            return new Promise((resolve, reject) => {
+                exporter.parse(model, (result) => {
+                    downloadFile(result, filename, 'application/octet-stream')
+                    resolve()
+                }, { binary: true })
+            })
+
+        case 'stl':
+            const stlResult = exporter.parse(model, { binary: true })
+            downloadFile(stlResult, filename, 'application/octet-stream')
+            break
+
+        case 'usdz':
+            const usdzResult = await exporter.parse(model)
+            downloadFile(usdzResult, filename, 'application/octet-stream')
+            break
+
+        default:
+            throw new Error(`Unsupported format: ${format}`)
+    }
+}
+
+// File download utility
+function downloadFile(data, filename, mimeType) {
+    const blob = new Blob([data], { type: mimeType })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+}

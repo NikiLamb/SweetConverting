@@ -33,6 +33,19 @@
                 <div>
                     <button class="custom-button" id="clear-models">Clear models</button>
                 </div>
+                <!-- New conversion section -->
+                <div id="conversion-section" style="margin-top: 10px; display: none;">
+                    <div style="margin-bottom: 5px;">
+                        <label for="format-selector" style="color: white; font-size: 12px;">Export Format:</label>
+                        <select id="format-selector" class="custom-button" style="margin-left: 5px; padding: 5px;">
+                            <option value="">Select format...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <button class="custom-button" id="convert-button" disabled>Create</button>
+                        <span id="conversion-status" style="color: white; font-size: 12px; margin-left: 10px;"></span>
+                    </div>
+                </div>
             </div>
         </div>
         <canvas class = "webgl"></canvas>

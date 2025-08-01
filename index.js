@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js'
 import {STLLoader} from 'three/addons/loaders/STLLoader.js'
+import {USDZLoader} from 'three/addons/loaders/USDZLoader.js'
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js'
 // Import exporters
 import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js'
@@ -105,6 +106,35 @@ function loadSTLFile(event) {
     reader.readAsArrayBuffer(file)
   }
 
+//USDZ Loader
+function loadUSDZFile(event) {
+    const file = event.target.files[0];
+  
+    const reader = new FileReader()
+    reader.onload = function () {
+        const data = reader.result
+  
+        const usdzLoader = new USDZLoader()
+        usdzLoader.parse(data, function (usdzModel) {
+            // Only append renderer if it's not already in the container
+            if (!viewerContainer.contains(renderer.domElement)) {
+                viewerContainer.appendChild(renderer.domElement)
+            }
+            
+            models.push(usdzModel)
+            scene.add(usdzModel)
+
+            // Update conversion state
+            updateConversionState('usdz', usdzModel)
+
+            console.log("USDZ Model added")
+            animate()
+        })
+    }
+  
+    reader.readAsArrayBuffer(file)
+  }
+
 //Unified model loader - detects file type and calls appropriate loader
 function loadModelFile(event) {
     console.log('loadModelFile called', event)
@@ -123,9 +153,12 @@ function loadModelFile(event) {
     } else if (fileName.endsWith('.stl')) {
         console.log('Loading STL file')
         loadSTLFile(event);
+    } else if (fileName.endsWith('.usdz')) {
+        console.log('Loading USDZ file')
+        loadUSDZFile(event);
     } else {
-        console.error('Unsupported file type. Please select a GLB or STL file.');
-        alert('Unsupported file type. Please select a GLB or STL file.');
+        console.error('Unsupported file type. Please select a GLB, STL, or USDZ file.');
+        alert('Unsupported file type. Please select a GLB, STL, or USDZ file.');
     }
 }
 
@@ -213,6 +246,13 @@ const formatMappings = {
         { value: 'ply', label: 'PLY (.ply)' },
         { value: 'glb', label: 'GLB (.glb)' },
         { value: 'usdz', label: 'USDZ (.usdz)' }
+    ],
+    'usdz': [
+        { value: 'glb', label: 'GLB (.glb)' },
+        { value: 'gltf', label: 'GLTF (.gltf)' },
+        { value: 'obj', label: 'OBJ (.obj)' },
+        { value: 'ply', label: 'PLY (.ply)' },
+        { value: 'stl', label: 'STL (.stl)' }
     ]
 }
 

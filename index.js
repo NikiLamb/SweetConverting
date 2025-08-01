@@ -1,7 +1,7 @@
-import * as THREE from './three.js-master/three.js-master/build/three.module.js'
-import {GLTFLoader} from './three.js-master/three.js-master/examples/jsm/loaders/GLTFLoader.js'
-import {STLLoader} from './three.js-master/three.js-master/examples/jsm/loaders/STLLoader.js'
-import {OrbitControls} from './three.js-master/three.js-master/examples/jsm/controls/OrbitControls.js'
+import * as THREE from 'three'
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js'
+import {STLLoader} from 'three/addons/loaders/STLLoader.js'
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js'
 
 
 const canvas = document.querySelector('canvas.webgl')
@@ -161,7 +161,7 @@ function animate(){
 
 function onWindowResize() {
     camera.aspect = window.innerWidth/window.innerHeight
-    camera.updateProjectionMatric()
+    camera.updateProjectionMatrix()
     renderer.setSize(window.innerWidth, window.innerHeight)
 }
 

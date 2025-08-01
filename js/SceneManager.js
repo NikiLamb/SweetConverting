@@ -1,0 +1,146 @@
+import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+
+export class SceneManager {
+    constructor(canvas) {
+        this.canvas = canvas
+        this.models = []
+        
+        this.initScene()
+        this.initCamera()
+        this.initRenderer()
+        this.initLighting()
+        this.initControls()
+        this.setupEventListeners()
+        
+        this.animate()
+    }
+    
+    initScene() {
+        this.scene = new THREE.Scene()
+    }
+    
+    initCamera() {
+        this.camera = new THREE.PerspectiveCamera(
+            75,
+            window.innerWidth / window.innerHeight,
+            0.01,
+            100
+        )
+        this.camera.position.set(0.25, 0.25, 0.25)
+        this.camera.lookAt(0, 0, 0)
+        this.scene.add(this.camera)
+    }
+    
+    initRenderer() {
+        this.renderer = new THREE.WebGLRenderer({
+            canvas: this.canvas
+        })
+        this.renderer.setSize(window.innerWidth, window.innerHeight)
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+        this.renderer.shadowMap.enabled = true
+        this.renderer.gammaOutput = true
+    }
+    
+    initLighting() {
+        // Front right light
+        const light1 = new THREE.DirectionalLight(0xffffff, 1)
+        light1.position.set(2, 2, 10)
+        light1.lookAt(0, 0, 0)
+        this.scene.add(light1)
+        
+        // Front left light
+        const light2 = new THREE.DirectionalLight(0xffffff, 1)
+        light2.position.set(-2, 2, 10)
+        light2.lookAt(0, 0, 0)
+        this.scene.add(light2)
+        
+        // Bottom light
+        const light3 = new THREE.DirectionalLight(0xffffff, 1)
+        light3.position.set(0, -2, 10)
+        light3.lookAt(0, 0, 0)
+        this.scene.add(light3)
+        
+        // Back light
+        const lightUnder = new THREE.DirectionalLight(0xffffff, 1)
+        lightUnder.position.set(0, 0, -5)
+        lightUnder.lookAt(0, 0, 0)
+        this.scene.add(lightUnder)
+    }
+    
+    initControls() {
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement)
+        this.controls.minDistance = 0.1
+        this.controls.maxDistance = 50
+        this.controls.target.set(0, 0, -0.2)
+        this.controls.update()
+    }
+    
+    setupEventListeners() {
+        window.addEventListener('resize', this.onWindowResize.bind(this), false)
+    }
+    
+    addModel(model) {
+        this.models.push(model)
+        this.scene.add(model)
+    }
+    
+    clearModels() {
+        for (let i = 0; i < this.models.length; i++) {
+            this.scene.remove(this.models[i])
+        }
+        this.models.length = 0
+    }
+    
+    getModels() {
+        return this.models
+    }
+    
+    getCurrentModel() {
+        return this.models.length > 0 ? this.models[this.models.length - 1] : null
+    }
+    
+    recenterCameraOnModel(model) {
+        // Calculate bounding box of the model
+        const box = new THREE.Box3().setFromObject(model)
+        const center = box.getCenter(new THREE.Vector3())
+        const size = box.getSize(new THREE.Vector3())
+        
+        // Get the max side of the bounding box to determine camera distance
+        const maxDim = Math.max(size.x, size.y, size.z)
+        const fov = this.camera.fov * (Math.PI / 180)
+        let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2))
+        
+        // Offset the camera position to ensure the model is fully visible
+        cameraZ *= 1.5 // Add some padding
+        
+        // Set camera position to look at the model from a good angle
+        this.camera.position.set(
+            center.x + cameraZ * 0.5,
+            center.y + cameraZ * 0.5,
+            center.z + cameraZ
+        )
+        this.camera.lookAt(center)
+        
+        // Update controls target to the center of the model
+        this.controls.target.copy(center)
+        this.controls.update()
+        
+        console.log('Camera recentered on model:', { center, size, cameraZ })
+    }
+    
+    animate() {
+        requestAnimationFrame(this.animate.bind(this))
+        this.renderer.render(this.scene, this.camera)
+    }
+    
+    onWindowResize() {
+        this.camera.aspect = window.innerWidth / window.innerHeight
+        this.camera.updateProjectionMatrix()
+        this.renderer.setSize(window.innerWidth, window.innerHeight)
+    }
+    
+    getRendererElement() {
+        return this.renderer.domElement
+    }
+}

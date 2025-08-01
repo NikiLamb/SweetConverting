@@ -114,8 +114,10 @@ function loadUSDZFile(event) {
     reader.onload = function () {
         const data = reader.result
   
-        const usdzLoader = new USDZLoader()
-        usdzLoader.parse(data, function (usdzModel) {
+        try {
+            const usdzLoader = new USDZLoader()
+            const usdzModel = usdzLoader.parse(data)
+            
             // Only append renderer if it's not already in the container
             if (!viewerContainer.contains(renderer.domElement)) {
                 viewerContainer.appendChild(renderer.domElement)
@@ -127,9 +129,12 @@ function loadUSDZFile(event) {
             // Update conversion state
             updateConversionState('usdz', usdzModel)
 
-            console.log("USDZ Model added")
+            console.log("USDZ Model added successfully")
             animate()
-        })
+        } catch (error) {
+            console.error("Error loading USDZ file:", error)
+            alert('Error loading USDZ file. Please check the console for details.')
+        }
     }
   
     reader.readAsArrayBuffer(file)

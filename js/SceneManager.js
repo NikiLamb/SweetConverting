@@ -10,6 +10,7 @@ export class SceneManager {
         this.initCamera()
         this.initRenderer()
         this.initLighting()
+        this.initGrid()
         this.initControls()
         this.setupEventListeners()
         
@@ -66,6 +67,14 @@ export class SceneManager {
         lightUnder.position.set(0, 0, -5)
         lightUnder.lookAt(0, 0, 0)
         this.scene.add(lightUnder)
+    }
+    
+    initGrid() {
+        // Create a grid helper on the XZ plane at y=0
+        // Parameters: size, divisions, centerLineColor, gridColor
+        const gridHelper = new THREE.GridHelper(10, 10, 0x444444, 0x222222)
+        gridHelper.position.y = 0 // Ensure it's at y=0
+        this.scene.add(gridHelper)
     }
     
     initControls() {

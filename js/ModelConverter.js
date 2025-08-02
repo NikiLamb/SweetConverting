@@ -50,7 +50,10 @@ export class ModelConverter {
         }
 
         const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-')
-        const filename = `model_${timestamp}.${format}`
+        // Check if this is a group (multiple models) or single model
+        const isMultipleModels = model.type === 'Group' && model.children.length > 1
+        const prefix = isMultipleModels ? 'combined_models' : 'model'
+        const filename = `${prefix}_${timestamp}.${format}`
 
         switch (format) {
             case 'glb':

@@ -92,12 +92,33 @@ export class SceneManager {
         this.models.length = 0
     }
     
-    getModels() {
+        getModels() {
         return this.models
     }
-    
+
     getCurrentModel() {
         return this.models.length > 0 ? this.models[this.models.length - 1] : null
+    }
+
+    // Get all models as a combined group for export
+    getAllModelsAsGroup() {
+        if (this.models.length === 0) {
+            return null
+        }
+        
+        if (this.models.length === 1) {
+            return this.models[0]
+        }
+        
+        // Create a group containing all models
+        const group = new THREE.Group()
+        this.models.forEach(model => {
+            // Clone the model to avoid removing it from the scene
+            const modelClone = model.clone()
+            group.add(modelClone)
+        })
+        
+        return group
     }
     
     recenterCameraOnModel(model) {

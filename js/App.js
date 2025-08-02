@@ -122,11 +122,11 @@ export class App {
         }
     }
     
-    // Method to export current model
+    // Method to export all models
     async exportModel(format) {
-        const currentModel = this.uiManager?.getCurrentModel()
-        if (!currentModel) {
-            throw new Error('No model loaded to export')
+        const allModels = this.sceneManager?.getAllModelsAsGroup()
+        if (!allModels) {
+            throw new Error('No models loaded to export')
         }
         
         if (!this.modelConverter) {
@@ -134,9 +134,9 @@ export class App {
         }
         
         try {
-            await this.modelConverter.exportModel(currentModel, format)
+            await this.modelConverter.exportModel(allModels, format)
         } catch (error) {
-            console.error('Error exporting model:', error)
+            console.error('Error exporting models:', error)
             throw error
         }
     }

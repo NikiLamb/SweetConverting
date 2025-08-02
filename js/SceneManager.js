@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { InfiniteGrid } from './InfiniteGrid.js'
 
 export class SceneManager {
     constructor(canvas) {
@@ -70,11 +71,9 @@ export class SceneManager {
     }
     
     initGrid() {
-        // Create a grid helper on the XZ plane at y=0
-        // Parameters: size, divisions, centerLineColor, gridColor
-        const gridHelper = new THREE.GridHelper(10, 10, 0x444444, 0x222222)
-        gridHelper.position.y = 0 // Ensure it's at y=0
-        this.scene.add(gridHelper)
+        // Create an infinite grid that extends in all directions
+        this.infiniteGrid = new InfiniteGrid(0x444444, 0x222222, 1)
+        this.scene.add(this.infiniteGrid.object3d)
     }
     
     initControls() {
@@ -99,6 +98,14 @@ export class SceneManager {
             this.scene.remove(this.models[i])
         }
         this.models.length = 0
+    }
+    
+    dispose() {
+        if (this.infiniteGrid) {
+            this.scene.remove(this.infiniteGrid.object3d)
+            this.infiniteGrid.dispose()
+            this.infiniteGrid = null
+        }
     }
     
         getModels() {
@@ -161,6 +168,12 @@ export class SceneManager {
     
     animate() {
         requestAnimationFrame(this.animate.bind(this))
+        
+        // Update infinite grid with camera position for proper rendering
+        if (this.infiniteGrid) {
+            this.infiniteGrid.updateCameraPosition(this.camera)
+        }
+        
         this.renderer.render(this.scene, this.camera)
     }
     

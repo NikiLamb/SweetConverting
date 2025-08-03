@@ -16,8 +16,11 @@ export class App {
     
     init() {
         try {
+            console.log('Starting app initialization...')
             this.setupCanvas()
+            console.log('Canvas setup complete')
             this.initializeModules()
+            console.log('Modules initialization complete')
             console.log('3D Model Viewer App initialized successfully')
         } catch (error) {
             console.error('Failed to initialize app:', error)
@@ -26,10 +29,14 @@ export class App {
     }
     
     setupCanvas() {
+        console.log('Setting up canvas...')
         this.canvas = document.querySelector('canvas.webgl')
         if (!this.canvas) {
             throw new Error('Canvas element with class "webgl" not found')
         }
+        console.log('Canvas found:', this.canvas)
+        console.log('Canvas dimensions:', this.canvas.width, 'x', this.canvas.height)
+        console.log('Canvas style:', this.canvas.style.cssText)
     }
     
     initializeModules() {

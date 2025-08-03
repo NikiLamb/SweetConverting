@@ -49,37 +49,34 @@ export class InfiniteGrid {
                 }
                 
                 void main() {
-                    // Calculate distance from camera for fade effect
-                    float dist = length(worldPosition - cameraPosition);
-                    float fade = 1.0 - smoothstep(50.0, 150.0, dist);
-                    
                     // Use world position for consistent grid across the infinite plane
                     vec2 coord = worldPosition.xz;
                     
                     // Create main grid
                     float grid1 = getGrid(coord, size);
                     
-                    // Create finer grid (only show when close)
+                    // Create finer grid
                     float grid2 = getGrid(coord, size / 10.0);
-                    float closeFade = 1.0 - smoothstep(10.0, 30.0, dist);
-                    grid2 *= closeFade;
+                    
+                    // Simple distance-based fade
+                    float dist = length(worldPosition - cameraPosition);
+                    float fade = 1.0 - smoothstep(100.0, 300.0, dist);
                     
                     // Combine grids
                     vec3 finalColor = mix(color2, color1, grid1);
-                    finalColor = mix(finalColor, color1 * 0.7, grid2 * 0.5);
+                    finalColor = mix(finalColor, color1 * 0.8, grid2 * 0.3);
                     
-                    // Apply fade based on distance
-                    float alpha = (grid1 + grid2 * 0.5) * fade;
-                    
-                    // Ensure some visibility even at distance for major grid lines
-                    alpha = max(alpha, grid1 * 0.15 * fade);
+                    // Calculate alpha with minimum visibility
+                    float alpha = max(grid1 * fade, 0.3);
+                    alpha = max(alpha, grid2 * fade * 0.5);
                     
                     gl_FragColor = vec4(finalColor, alpha);
                 }
             `,
             transparent: true,
             side: THREE.DoubleSide,
-            depthWrite: false
+            depthWrite: false,
+            depthTest: true
         })
         
         // Create the mesh
@@ -87,8 +84,13 @@ export class InfiniteGrid {
         this.mesh.rotation.x = -Math.PI / 2 // Rotate to be horizontal
         this.mesh.position.y = 0
         
-        // Make sure it renders behind other objects
+        // Make sure it renders behind other objects but is still visible
         this.mesh.renderOrder = -1
+        this.mesh.material.blending = THREE.NormalBlending
+        
+        console.log('InfiniteGrid mesh created:', this.mesh)
+        console.log('Grid position:', this.mesh.position)
+        console.log('Grid rotation:', this.mesh.rotation)
     }
     
     updateCameraPosition(camera) {

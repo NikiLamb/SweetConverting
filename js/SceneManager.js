@@ -6,6 +6,7 @@ export class SceneManager {
     constructor(canvas) {
         this.canvas = canvas
         this.models = []
+        this.animationFrame = 0
         
         this.initScene()
         this.initCamera()
@@ -20,6 +21,7 @@ export class SceneManager {
     
     initScene() {
         this.scene = new THREE.Scene()
+        this.scene.background = new THREE.Color(0x000000)
     }
     
     initCamera() {
@@ -27,16 +29,18 @@ export class SceneManager {
             75,
             window.innerWidth / window.innerHeight,
             0.01,
-            100
+            1000
         )
-        this.camera.position.set(0.25, 0.25, 0.25)
+        this.camera.position.set(2, 2, 2)
         this.camera.lookAt(0, 0, 0)
         this.scene.add(this.camera)
     }
     
     initRenderer() {
         this.renderer = new THREE.WebGLRenderer({
-            canvas: this.canvas
+            canvas: this.canvas,
+            alpha: true,
+            premultipliedAlpha: false
         })
         this.renderer.setSize(window.innerWidth, window.innerHeight)
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -72,15 +76,16 @@ export class SceneManager {
     
     initGrid() {
         // Create an infinite grid that extends in all directions
-        this.infiniteGrid = new InfiniteGrid(0x444444, 0x222222, 1)
+        this.infiniteGrid = new InfiniteGrid(0xffffff, 0x666666, 2)
         this.scene.add(this.infiniteGrid.object3d)
+        console.log('Grid initialized and added to scene')
     }
     
     initControls() {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement)
         this.controls.minDistance = 0.1
-        this.controls.maxDistance = 50
-        this.controls.target.set(0, 0, -0.2)
+        this.controls.maxDistance = 200
+        this.controls.target.set(0, 0, 0)
         this.controls.update()
     }
     
@@ -169,9 +174,16 @@ export class SceneManager {
     animate() {
         requestAnimationFrame(this.animate.bind(this))
         
+        this.animationFrame++
+        
         // Update infinite grid with camera position for proper rendering
         if (this.infiniteGrid) {
             this.infiniteGrid.updateCameraPosition(this.camera)
+            
+            // Log periodically to verify grid is updating
+            if (this.animationFrame % 120 === 0) {
+                console.log('Grid updated, camera position:', this.camera.position)
+            }
         }
         
         this.renderer.render(this.scene, this.camera)

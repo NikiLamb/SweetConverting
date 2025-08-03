@@ -4,6 +4,7 @@ import { InfiniteGrid } from './InfiniteGrid.js'
 
 export class SceneManager {
     constructor(canvas) {
+        console.log('SceneManager constructor called with canvas:', canvas)
         this.canvas = canvas
         this.models = []
         this.animationFrame = 0
@@ -16,12 +17,15 @@ export class SceneManager {
         this.initControls()
         this.setupEventListeners()
         
+        console.log('Starting animation loop...')
         this.animate()
     }
     
     initScene() {
         this.scene = new THREE.Scene()
-        this.scene.background = new THREE.Color(0x000000)
+        // Use dark gray instead of pure black to help with visibility
+        this.scene.background = new THREE.Color(0x111111)
+        console.log('Scene initialized with background color:', this.scene.background.getHex())
     }
     
     initCamera() {
@@ -31,9 +35,11 @@ export class SceneManager {
             0.01,
             1000
         )
-        this.camera.position.set(2, 2, 2)
+        // Set camera position to look down at the grid from a good angle
+        this.camera.position.set(5, 5, 5)
         this.camera.lookAt(0, 0, 0)
         this.scene.add(this.camera)
+        console.log('Camera initialized at position:', this.camera.position)
     }
     
     initRenderer() {
@@ -45,7 +51,11 @@ export class SceneManager {
         this.renderer.setSize(window.innerWidth, window.innerHeight)
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
         this.renderer.shadowMap.enabled = true
-        this.renderer.gammaOutput = true
+        // Fix deprecated property
+        this.renderer.outputColorSpace = THREE.SRGBColorSpace
+        
+        console.log('Renderer initialized:', this.renderer)
+        console.log('Canvas element:', this.canvas)
     }
     
     initLighting() {
@@ -76,9 +86,39 @@ export class SceneManager {
     
     initGrid() {
         // Create an infinite grid that extends in all directions
-        this.infiniteGrid = new InfiniteGrid(0xffffff, 0x666666, 2)
-        this.scene.add(this.infiniteGrid.object3d)
+        // Use brighter colors for better visibility against black background
+        this.infiniteGrid = new InfiniteGrid(0xcccccc, 0x666666, 2)
+        const gridObject = this.infiniteGrid.object3d
+        this.scene.add(gridObject)
         console.log('Grid initialized and added to scene')
+        console.log('Grid object3d:', gridObject)
+        console.log('Grid object3d type:', gridObject.type)
+        console.log('Grid object3d children:', gridObject.children ? gridObject.children.length : 'no children')
+        console.log('Scene children count after grid:', this.scene.children.length)
+        console.log('Scene children:', this.scene.children.map(child => `${child.type}(${child.name || 'unnamed'})`))
+        
+        // Add a simple grid helper as backup for debugging
+        const gridHelper = new THREE.GridHelper(20, 20, 0x888888, 0x444444)
+        gridHelper.name = 'GridHelper'
+        this.scene.add(gridHelper)
+        console.log('Added GridHelper as backup')
+        
+        // Add a simple test plane to verify rendering
+        const testGeometry = new THREE.PlaneGeometry(10, 10)
+        const testMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xff0000, 
+            transparent: true, 
+            opacity: 0.5,
+            side: THREE.DoubleSide
+        })
+        const testPlane = new THREE.Mesh(testGeometry, testMaterial)
+        testPlane.rotation.x = -Math.PI / 2
+        testPlane.position.y = 0.01
+        testPlane.name = 'TestPlane'
+        this.scene.add(testPlane)
+        console.log('Added red test plane for debugging')
+        
+        console.log('Final scene children count:', this.scene.children.length)
     }
     
     initControls() {
@@ -183,6 +223,10 @@ export class SceneManager {
             // Log periodically to verify grid is updating
             if (this.animationFrame % 120 === 0) {
                 console.log('Grid updated, camera position:', this.camera.position)
+                console.log('Grid mesh visible:', this.infiniteGrid.object3d.visible)
+                console.log('Grid mesh material:', this.infiniteGrid.object3d.material.visible)
+                console.log('Grid position:', this.infiniteGrid.object3d.position)
+                console.log('Grid in scene:', this.scene.children.includes(this.infiniteGrid.object3d))
             }
         }
         

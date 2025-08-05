@@ -12,21 +12,6 @@ export class ModelLoaders {
         this.loadedModelsCount = 0  // Track number of models loaded in current session
     }
     
-    // Calculate position for model based on index to arrange in a grid
-    calculateModelPosition(modelIndex) {
-        const spacing = 5  // Space between models
-        const modelsPerRow = 3  // Number of models per row
-        
-        const row = Math.floor(modelIndex / modelsPerRow)
-        const col = modelIndex % modelsPerRow
-        
-        return {
-            x: (col - 1) * spacing,  // Center the grid around origin
-            y: 0,
-            z: row * spacing
-        }
-    }
-    
     // Reset the loaded models counter (call when clearing models)
     resetLoadedModelsCount() {
         this.loadedModelsCount = 0
@@ -69,9 +54,8 @@ export class ModelLoaders {
                 try {
                     const glbModel = glb.scene
                     
-                    // Apply position based on load order
-                    const position = this.calculateModelPosition(this.loadedModelsCount)
-                    glbModel.position.set(position.x, position.y, position.z)
+                    // Position model at origin (0,0,0)
+                    glbModel.position.set(0, 0, 0)
                     this.loadedModelsCount++
                     
                     this.sceneManager.addModel(glbModel)
@@ -115,9 +99,8 @@ export class ModelLoaders {
                 // Pivot 90 degrees around the X axis
                 stlModel.rotateX(-Math.PI / 2)
                 
-                // Apply position based on load order
-                const position = this.calculateModelPosition(this.loadedModelsCount)
-                stlModel.position.set(position.x, position.y, position.z)
+                // Position model at origin (0,0,0)
+                stlModel.position.set(0, 0, 0)
                 this.loadedModelsCount++
                 
                 this.sceneManager.addModel(stlModel)
@@ -144,9 +127,8 @@ export class ModelLoaders {
                 const data = reader.result
                 const usdzModel = this.usdzLoader.parse(data)
                 
-                // Apply position based on load order
-                const position = this.calculateModelPosition(this.loadedModelsCount)
-                usdzModel.position.set(position.x, position.y, position.z)
+                // Position model at origin (0,0,0)
+                usdzModel.position.set(0, 0, 0)
                 this.loadedModelsCount++
                 
                 this.sceneManager.addModel(usdzModel)

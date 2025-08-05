@@ -119,9 +119,6 @@ export class UIManager {
         
         console.log(`Loading ${files.length} file(s)...`)
         
-        // Clear existing models before loading new ones
-        this.handleClearModels()
-        
         // Track loading results
         const results = {
             successful: 0,

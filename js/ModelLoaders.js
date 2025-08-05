@@ -11,7 +11,7 @@ export class ModelLoaders {
         this.usdzLoader = new USDZLoader()
     }
     
-    async loadModelFile(file) {
+    async loadModelFile(file, statusCallback = null) {
         return new Promise((resolve, reject) => {
             if (!file) {
                 reject(new Error('No file selected'))
@@ -23,13 +23,16 @@ export class ModelLoaders {
             
             if (fileName.endsWith('.glb')) {
                 console.log('Loading GLB file')
-                this.loadGLBFile(file, resolve, reject)
+                if (statusCallback) statusCallback('Parsing GLB model...')
+                this.loadGLBFile(file, resolve, reject, statusCallback)
             } else if (fileName.endsWith('.stl')) {
                 console.log('Loading STL file')
-                this.loadSTLFile(file, resolve, reject)
+                if (statusCallback) statusCallback('Parsing STL model...')
+                this.loadSTLFile(file, resolve, reject, statusCallback)
             } else if (fileName.endsWith('.usdz')) {
                 console.log('Loading USDZ file')
-                this.loadUSDZFile(file, resolve, reject)
+                if (statusCallback) statusCallback('Parsing USDZ model...')
+                this.loadUSDZFile(file, resolve, reject, statusCallback)
             } else {
                 const error = 'Unsupported file type. Please select a GLB, STL, or USDZ file.'
                 console.error(error)
@@ -38,7 +41,7 @@ export class ModelLoaders {
         })
     }
     
-    loadGLBFile(file, resolve, reject) {
+    loadGLBFile(file, resolve, reject, statusCallback = null) {
         const reader = new FileReader()
         
         reader.onload = () => {
@@ -47,25 +50,37 @@ export class ModelLoaders {
             this.glbLoader.parse(data, '', (glb) => {
                 try {
                     const glbModel = glb.scene
+                    if (statusCallback) statusCallback('Adding model to scene...')
                     this.sceneManager.addModel(glbModel)
                     this.sceneManager.recenterCameraOnModel(glbModel)
-                    
-                    console.log("GLB Model added")
-                    resolve({
-                        model: glbModel,
-                        fileType: 'glb'
-                    })
+                    console.log('GLB model loaded and added to scene')
+                    resolve({ model: glbModel, fileType: 'glb' })
                 } catch (error) {
+                    console.error('Error processing GLB:', error)
                     reject(error)
                 }
-            }, reject)
+            }, (xhr) => {
+                // Progress callback
+                if (xhr.lengthComputable) {
+                    const percentComplete = (xhr.loaded / xhr.total) * 100
+                    console.log(`Loading: ${percentComplete.toFixed(2)}%`)
+                }
+            }, (error) => {
+                console.error('Error loading GLB:', error)
+                reject(error)
+            })
         }
         
-        reader.onerror = () => reject(new Error('Failed to read file'))
+        reader.onerror = () => {
+            const error = 'Error reading file'
+            console.error(error)
+            reject(new Error(error))
+        }
+        
         reader.readAsArrayBuffer(file)
     }
     
-    loadSTLFile(file, resolve, reject) {
+    loadSTLFile(file, resolve, reject, statusCallback = null) {
         const reader = new FileReader()
         
         reader.onload = () => {
@@ -73,18 +88,18 @@ export class ModelLoaders {
                 const data = reader.result
                 const geometry = this.stlLoader.parse(data)
                 
-                let stlMaterial
-                if (geometry.hasColors) {
-                    geometry.computeVertexNormals()
-                    stlMaterial = new THREE.MeshPhongMaterial({ 
-                        opacity: geometry.alpha, 
-                        vertexColors: true 
-                    })
-                } else {
-                    stlMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 })
-                }
+                // Create material for STL
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: 0xAAAAAA,
+                    specular: 0x111111,
+                    shininess: 200
+                })
                 
-                const stlModel = new THREE.Mesh(geometry, stlMaterial)
+                const stlModel = new THREE.Mesh(geometry, material)
+                
+                // Center the geometry
+                geometry.computeBoundingBox()
+                geometry.center()
                 
                 // Scale down by 10 the model
                 stlModel.scale.set(0.1, 0.1, 0.1)
@@ -92,46 +107,55 @@ export class ModelLoaders {
                 // Pivot 90 degrees around the X axis
                 stlModel.rotateX(-Math.PI / 2)
                 
+                if (statusCallback) statusCallback('Adding model to scene...')
                 this.sceneManager.addModel(stlModel)
                 this.sceneManager.recenterCameraOnModel(stlModel)
-                
-                console.log("STL Model added")
-                resolve({
-                    model: stlModel,
-                    fileType: 'stl'
-                })
+                console.log('STL model loaded and added to scene')
+                resolve({ model: stlModel, fileType: 'stl' })
             } catch (error) {
+                console.error('Error processing STL:', error)
                 reject(error)
             }
         }
         
-        reader.onerror = () => reject(new Error('Failed to read STL file'))
+        reader.onerror = () => {
+            const error = 'Error reading file'
+            console.error(error)
+            reject(new Error(error))
+        }
+        
         reader.readAsArrayBuffer(file)
     }
     
-    loadUSDZFile(file, resolve, reject) {
+    loadUSDZFile(file, resolve, reject, statusCallback = null) {
         const reader = new FileReader()
         
         reader.onload = () => {
-            try {
-                const data = reader.result
-                const usdzModel = this.usdzLoader.parse(data)
-                
-                this.sceneManager.addModel(usdzModel)
-                this.sceneManager.recenterCameraOnModel(usdzModel)
-                
-                console.log("USDZ Model added successfully")
-                resolve({
-                    model: usdzModel,
-                    fileType: 'usdz'
-                })
-            } catch (error) {
-                console.error("Error loading USDZ file:", error)
+            const data = reader.result
+            
+            this.usdzLoader.parse(data, (usdzModel) => {
+                try {
+                    if (statusCallback) statusCallback('Adding model to scene...')
+                    this.sceneManager.addModel(usdzModel)
+                    this.sceneManager.recenterCameraOnModel(usdzModel)
+                    console.log('USDZ model loaded and added to scene')
+                    resolve({ model: usdzModel, fileType: 'usdz' })
+                } catch (error) {
+                    console.error('Error processing USDZ:', error)
+                    reject(error)
+                }
+            }, (error) => {
+                console.error('Error loading USDZ:', error)
                 reject(error)
-            }
+            })
         }
         
-        reader.onerror = () => reject(new Error('Failed to read USDZ file'))
+        reader.onerror = () => {
+            const error = 'Error reading file'
+            console.error(error)
+            reject(new Error(error))
+        }
+        
         reader.readAsArrayBuffer(file)
     }
     

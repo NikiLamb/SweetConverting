@@ -42,6 +42,10 @@ export class UIManager {
         this.elements.convertButton = document.getElementById('convert-button')
         this.elements.conversionStatus = document.getElementById('conversion-status')
         
+        // Loading overlay elements
+        this.elements.loadingOverlay = document.getElementById('loading-overlay')
+        this.elements.loadingStatusText = document.getElementById('loading-status-text')
+        
         this.validateUIElements()
     }
     
@@ -117,8 +121,10 @@ export class UIManager {
         }
         
         try {
-            this.showLoadingState()
-            const result = await this.modelLoaders.loadModelFile(file)
+            this.showLoadingState('Loading file...')
+            const result = await this.modelLoaders.loadModelFile(file, (status) => {
+                this.updateLoadingStatus(status)
+            })
             this.handleModelLoaded(result.model, result.fileType)
         } catch (error) {
             console.error('Error loading model:', error)
@@ -171,6 +177,9 @@ export class UIManager {
         const statusPrefix = modelCount > 1 ? `Converting ${modelCount} models...` : 'Converting...'
         this.updateConversionStatus(statusPrefix)
         
+        // Show loading overlay for conversion
+        this.showLoadingState('Converting model to ' + selectedFormat.toUpperCase() + '...')
+        
         try {
             await this.modelConverter.exportModel(allModels, selectedFormat)
             const successMessage = modelCount > 1 ? `All ${modelCount} models exported successfully!` : 'Conversion completed!'
@@ -195,6 +204,7 @@ export class UIManager {
                 }
             }, 3000)
         } finally {
+            this.hideLoadingState()
             this.elements.convertButton.disabled = false
         }
     }
@@ -256,14 +266,47 @@ export class UIManager {
         }
     }
     
-    showLoadingState() {
-        // You can implement loading indicators here
-        console.log('Loading model...')
+    showLoadingState(statusText = 'Loading...') {
+        if (this.elements.loadingOverlay) {
+            this.elements.loadingOverlay.style.display = 'flex'
+            this.updateLoadingStatus(statusText)
+            
+            // Disable UI elements
+            this.setUIElementsEnabled(false)
+        }
     }
     
     hideLoadingState() {
-        // You can implement hiding loading indicators here
-        console.log('Loading complete')
+        if (this.elements.loadingOverlay) {
+            this.elements.loadingOverlay.style.display = 'none'
+            this.updateLoadingStatus('')
+            
+            // Re-enable UI elements
+            this.setUIElementsEnabled(true)
+        }
+    }
+    
+    updateLoadingStatus(text) {
+        if (this.elements.loadingStatusText) {
+            this.elements.loadingStatusText.textContent = text
+        }
+    }
+    
+    setUIElementsEnabled(enabled) {
+        // Disable/enable all interactive elements
+        const elementsToToggle = [
+            this.elements.modelLoadButton,
+            this.elements.modelFileInput,
+            this.elements.clearButton,
+            this.elements.formatSelector,
+            this.elements.convertButton
+        ]
+        
+        elementsToToggle.forEach(element => {
+            if (element) {
+                element.disabled = !enabled
+            }
+        })
     }
     
     showError(message) {

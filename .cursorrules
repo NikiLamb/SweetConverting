@@ -1,0 +1,79 @@
+# 3D Model Viewer - Cursor Project Rules
+
+## Core Rules
+
+1. **Follow the existing code style in the project**
+   - Use ES6 module syntax with explicit imports/exports
+   - Follow the modular architecture pattern established in the js/ directory
+   - Use descriptive class and method names
+   - Maintain consistent indentation (4 spaces)
+   - Use single quotes for strings unless interpolation is needed
+   - Add JSDoc comments for public methods and complex functions
+
+2. **Add comprehensive error handling**
+   - Wrap all async operations in try-catch blocks
+   - Provide meaningful error messages to users via console.error() and UI feedback
+   - Handle edge cases for file loading, format conversion, and 3D rendering
+   - Validate file inputs before processing
+   - Gracefully degrade functionality when features are unavailable
+
+3. **Run tests before submitting changes**
+   - Manually test all file format loading (GLB, STL, USDZ)
+   - Verify format conversions work correctly
+   - Test UI interactions and error states
+   - Check browser console for any errors or warnings
+   - Test on different browsers if making significant changes
+
+4. **Show a plan of the work to be done before starting modifications**
+   - Clearly outline the changes to be made
+   - Identify which modules will be affected
+   - Consider impact on existing functionality
+   - Plan for backward compatibility if applicable
+   - List any new dependencies or requirements
+
+## Project-Specific Guidelines
+
+### Architecture
+- Maintain separation of concerns between modules:
+  - `App.js` - Main orchestrator
+  - `SceneManager.js` - Three.js scene management
+  - `ModelLoaders.js` - File format loading
+  - `ModelConverter.js` - Format conversion
+  - `UIManager.js` - DOM and user interactions
+  - `utils/` - Shared utilities
+
+### Three.js Best Practices
+- Properly dispose of geometries, materials, and textures when removing models
+- Use appropriate lighting for different model types
+- Optimize performance for large models
+- Handle WebGL context loss gracefully
+
+### File Handling
+- Support GLB, STL, and USDZ formats as primary targets
+- Validate file types before processing
+- Provide clear feedback during long operations
+- Handle large files appropriately with progress indicators
+
+### UI/UX Considerations
+- Keep the interface simple and intuitive
+- Provide immediate visual feedback for user actions
+- Show loading states during file processing
+- Display clear error messages when operations fail
+
+### Code Quality
+- Keep functions focused and single-purpose
+- Use meaningful variable and function names
+- Add comments for complex algorithms or Three.js-specific code
+- Avoid global variables - use module scope or class properties
+
+### Performance
+- Lazy load heavy dependencies when possible
+- Optimize rendering for smooth interaction
+- Consider memory usage when handling large models
+- Clean up resources when models are removed
+
+### Browser Compatibility
+- Target modern browsers with ES6+ support
+- Test WebGL availability before initializing 3D features
+- Provide fallbacks for unsupported features
+- Handle mobile devices appropriately

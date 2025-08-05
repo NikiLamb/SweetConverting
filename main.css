@@ -54,23 +54,18 @@
 }
 
 /* Block all interactions when loading overlay is visible */
-#loading-overlay ~ * {
+#loading-overlay[style*="display: flex"] ~ * {
     pointer-events: none !important;
+    user-select: none !important;
 }
 
-/* Ensure button container can't be interacted with when loading overlay is shown */
+/* Ensure button container can't be interacted with when processing */
 body.processing #button-container {
     pointer-events: none;
 }
 
 body.processing * {
     cursor: not-allowed !important;
-}
-
-/* Additional safeguard: when loading overlay is displayed, block everything below it */
-#loading-overlay[style*="display: flex"] ~ * {
-    pointer-events: none !important;
-    user-select: none !important;
 }
 
 #loading-spinner-container {

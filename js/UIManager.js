@@ -7,6 +7,7 @@ export class UIManager {
         // Current state
         this.currentLoadedFileType = null
         this.currentModel = null
+        this.isProcessing = false // Add processing flag
         
         // UI Elements
         this.elements = {}
@@ -73,17 +74,20 @@ export class UIManager {
         // Main UI event listeners
         if (this.elements.modelLoadButton && this.elements.modelFileInput) {
             this.elements.modelLoadButton.addEventListener('click', () => {
+                if (this.isProcessing) return // Prevent action if processing
                 console.log('Load model button clicked!')
                 this.elements.modelFileInput.click()
             })
             
             this.elements.modelFileInput.addEventListener('change', (event) => {
+                if (this.isProcessing) return // Prevent action if processing
                 this.handleFileLoad(event)
             })
         }
         
         if (this.elements.clearButton) {
             this.elements.clearButton.addEventListener('click', () => {
+                if (this.isProcessing) return // Prevent action if processing
                 this.handleClearModels()
             })
         }
@@ -91,12 +95,14 @@ export class UIManager {
         // Conversion UI event listeners
         if (this.elements.formatSelector) {
             this.elements.formatSelector.addEventListener('change', () => {
+                if (this.isProcessing) return // Prevent action if processing
                 this.handleFormatChange()
             })
         }
         
         if (this.elements.convertButton) {
             this.elements.convertButton.addEventListener('click', () => {
+                if (this.isProcessing) return // Prevent action if processing
                 this.handleConversion()
             })
         }
@@ -120,6 +126,12 @@ export class UIManager {
             return
         }
         
+        // Check if already processing
+        if (this.isProcessing) {
+            console.log('Already processing, ignoring file load request')
+            return
+        }
+        
         try {
             this.showLoadingState('Loading file...')
             const result = await this.modelLoaders.loadModelFile(file, (status) => {
@@ -131,6 +143,8 @@ export class UIManager {
             this.showError('Failed to load model: ' + error.message)
         } finally {
             this.hideLoadingState()
+            // Clear the file input to allow reloading the same file
+            event.target.value = ''
         }
     }
     
@@ -164,6 +178,9 @@ export class UIManager {
         const selectedFormat = this.elements.formatSelector.value
         if (!selectedFormat) return
         
+        // Check if already processing
+        if (this.isProcessing) return
+        
         // Get all models from the scene for export
         const allModels = this.sceneManager.getAllModelsAsGroup()
         if (!allModels) {
@@ -172,6 +189,7 @@ export class UIManager {
             return
         }
         
+        // Disable button immediately
         this.elements.convertButton.disabled = true
         const modelCount = this.sceneManager.getModels().length
         const statusPrefix = modelCount > 1 ? `Converting ${modelCount} models...` : 'Converting...'
@@ -205,7 +223,10 @@ export class UIManager {
             }, 3000)
         } finally {
             this.hideLoadingState()
-            this.elements.convertButton.disabled = false
+            // Re-enable button only if format is still selected
+            if (this.elements.formatSelector.value) {
+                this.elements.convertButton.disabled = false
+            }
         }
     }
     
@@ -268,6 +289,9 @@ export class UIManager {
     
     showLoadingState(statusText = 'Loading...') {
         if (this.elements.loadingOverlay) {
+            this.isProcessing = true // Set processing flag
+            document.body.classList.add('processing') // Add processing class to body
+            
             this.elements.loadingOverlay.style.display = 'flex'
             this.updateLoadingStatus(statusText)
             
@@ -278,6 +302,9 @@ export class UIManager {
     
     hideLoadingState() {
         if (this.elements.loadingOverlay) {
+            this.isProcessing = false // Clear processing flag
+            document.body.classList.remove('processing') // Remove processing class from body
+            
             this.elements.loadingOverlay.style.display = 'none'
             this.updateLoadingStatus('')
             
@@ -305,6 +332,14 @@ export class UIManager {
         elementsToToggle.forEach(element => {
             if (element) {
                 element.disabled = !enabled
+                // Add additional attributes for better compatibility
+                if (!enabled) {
+                    element.setAttribute('aria-disabled', 'true')
+                    element.style.pointerEvents = 'none'
+                } else {
+                    element.removeAttribute('aria-disabled')
+                    element.style.pointerEvents = ''
+                }
             }
         })
     }

@@ -9,6 +9,27 @@ export class ModelLoaders {
         this.glbLoader = new GLTFLoader()
         this.stlLoader = new STLLoader()
         this.usdzLoader = new USDZLoader()
+        this.loadedModelsCount = 0  // Track number of models loaded in current session
+    }
+    
+    // Calculate position for model based on index to arrange in a grid
+    calculateModelPosition(modelIndex) {
+        const spacing = 5  // Space between models
+        const modelsPerRow = 3  // Number of models per row
+        
+        const row = Math.floor(modelIndex / modelsPerRow)
+        const col = modelIndex % modelsPerRow
+        
+        return {
+            x: (col - 1) * spacing,  // Center the grid around origin
+            y: 0,
+            z: row * spacing
+        }
+    }
+    
+    // Reset the loaded models counter (call when clearing models)
+    resetLoadedModelsCount() {
+        this.loadedModelsCount = 0
     }
     
     async loadModelFile(file) {
@@ -47,15 +68,17 @@ export class ModelLoaders {
             this.glbLoader.parse(data, '', (glb) => {
                 try {
                     const glbModel = glb.scene
-                    this.sceneManager.addModel(glbModel)
-                    this.sceneManager.recenterCameraOnModel(glbModel)
                     
-                    console.log("GLB Model added")
-                    resolve({
-                        model: glbModel,
-                        fileType: 'glb'
-                    })
+                    // Apply position based on load order
+                    const position = this.calculateModelPosition(this.loadedModelsCount)
+                    glbModel.position.set(position.x, position.y, position.z)
+                    this.loadedModelsCount++
+                    
+                    this.sceneManager.addModel(glbModel)
+                    console.log('GLB model loaded successfully')
+                    resolve({ model: glbModel, fileType: 'glb' })
                 } catch (error) {
+                    console.error('Error processing GLB:', error)
                     reject(error)
                 }
             }, reject)
@@ -92,8 +115,12 @@ export class ModelLoaders {
                 // Pivot 90 degrees around the X axis
                 stlModel.rotateX(-Math.PI / 2)
                 
+                // Apply position based on load order
+                const position = this.calculateModelPosition(this.loadedModelsCount)
+                stlModel.position.set(position.x, position.y, position.z)
+                this.loadedModelsCount++
+                
                 this.sceneManager.addModel(stlModel)
-                this.sceneManager.recenterCameraOnModel(stlModel)
                 
                 console.log("STL Model added")
                 resolve({
@@ -117,8 +144,12 @@ export class ModelLoaders {
                 const data = reader.result
                 const usdzModel = this.usdzLoader.parse(data)
                 
+                // Apply position based on load order
+                const position = this.calculateModelPosition(this.loadedModelsCount)
+                usdzModel.position.set(position.x, position.y, position.z)
+                this.loadedModelsCount++
+                
                 this.sceneManager.addModel(usdzModel)
-                this.sceneManager.recenterCameraOnModel(usdzModel)
                 
                 console.log("USDZ Model added successfully")
                 resolve({

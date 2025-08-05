@@ -15,32 +15,20 @@ export class ModelConverter {
             usdz: new USDZExporter()
         }
         
-        this.formatMappings = {
-            'glb': [
-                { value: 'obj', label: 'OBJ (.obj)' },
-                { value: 'ply', label: 'PLY (.ply)' },
-                { value: 'stl', label: 'STL (.stl)' },
-                { value: 'usdz', label: 'USDZ (.usdz)' },
-                { value: 'gltf', label: 'GLTF (.gltf)' }
-            ],
-            'stl': [
-                { value: 'obj', label: 'OBJ (.obj)' },
-                { value: 'ply', label: 'PLY (.ply)' },
-                { value: 'glb', label: 'GLB (.glb)' },
-                { value: 'usdz', label: 'USDZ (.usdz)' }
-            ],
-            'usdz': [
-                { value: 'glb', label: 'GLB (.glb)' },
-                { value: 'gltf', label: 'GLTF (.gltf)' },
-                { value: 'obj', label: 'OBJ (.obj)' },
-                { value: 'ply', label: 'PLY (.ply)' },
-                { value: 'stl', label: 'STL (.stl)' }
-            ]
-        }
+        // Universal format list - all formats available regardless of source file type
+        this.supportedFormats = [
+            { value: 'glb', label: 'GLB (.glb)' },
+            { value: 'gltf', label: 'GLTF (.gltf)' },
+            { value: 'obj', label: 'OBJ (.obj)' },
+            { value: 'ply', label: 'PLY (.ply)' },
+            { value: 'stl', label: 'STL (.stl)' },
+            { value: 'usdz', label: 'USDZ (.usdz)' }
+        ]
     }
     
     getSupportedFormats(sourceFormat) {
-        return this.formatMappings[sourceFormat] || []
+        // Return all supported formats regardless of source file type
+        return this.supportedFormats
     }
     
     async exportModel(model, format) {

@@ -18,7 +18,7 @@
    - Gracefully degrade functionality when features are unavailable
 
 3. **Run tests before submitting changes**
-   - Manually test all file format loading (GLB, STL, USDZ)
+   - Manually test all file format loading
    - Verify format conversions work correctly
    - Test UI interactions and error states
    - Check browser console for any errors or warnings
@@ -49,7 +49,6 @@
 - Handle WebGL context loss gracefully
 
 ### File Handling
-- Support GLB, STL, and USDZ formats as primary targets
 - Validate file types before processing
 - Provide clear feedback during long operations
 - Handle large files appropriately with progress indicators

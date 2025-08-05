@@ -110,22 +110,87 @@ export class UIManager {
     }
     
     async handleFileLoad(event) {
-        const file = event.target.files[0]
-        if (!file) {
-            console.log('No file selected')
+        const files = Array.from(event.target.files)
+        
+        if (files.length === 0) {
+            console.log('No files selected')
             return
         }
         
+        console.log(`Loading ${files.length} file(s)...`)
+        
+        // Clear existing models before loading new ones
+        this.handleClearModels()
+        
+        // Track loading results
+        const results = {
+            successful: 0,
+            failed: 0,
+            errors: []
+        }
+        
         try {
-            this.showLoadingState()
-            const result = await this.modelLoaders.loadModelFile(file)
-            this.handleModelLoaded(result.model, result.fileType)
+            this.showLoadingState(`Loading ${files.length} model${files.length > 1 ? 's' : ''}...`)
+            
+            // Load all files
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i]
+                try {
+                    // Update loading message with progress
+                    this.updateLoadingMessage(`Loading ${i + 1} of ${files.length}: ${file.name}`)
+                    
+                    console.log(`Loading file: ${file.name}`)
+                    const result = await this.modelLoaders.loadModelFile(file)
+                    results.successful++
+                    
+                    // Update state for the last loaded model
+                    this.currentModel = result.model
+                    this.currentLoadedFileType = result.fileType
+                } catch (error) {
+                    console.error(`Error loading file ${file.name}:`, error)
+                    results.failed++
+                    results.errors.push({
+                        fileName: file.name,
+                        error: error.message
+                    })
+                }
+            }
+            
+            // Show results
+            if (results.successful > 0) {
+                this.updateConversionUI(this.currentLoadedFileType)
+                
+                // Recenter camera to show all loaded models
+                this.sceneManager.recenterCameraOnAllModels()
+                
+                // Update status message
+                let message = `Successfully loaded ${results.successful} model${results.successful > 1 ? 's' : ''}`
+                if (results.failed > 0) {
+                    message += `, ${results.failed} failed`
+                }
+                console.log(message)
+                
+                // Show errors if any
+                if (results.errors.length > 0) {
+                    const errorDetails = results.errors.map(e => `${e.fileName}: ${e.error}`).join('\n')
+                    this.showError(`Some files failed to load:\n${errorDetails}`)
+                }
+            } else {
+                this.showError('Failed to load any models')
+            }
+            
         } catch (error) {
-            console.error('Error loading model:', error)
-            this.showError('Failed to load model: ' + error.message)
+            console.error('Error during file loading:', error)
+            this.showError('An unexpected error occurred while loading files')
         } finally {
             this.hideLoadingState()
         }
+        
+        // Ensure viewer container has the renderer
+        this.setupViewerContainer()
+        
+        // Reset file input to allow re-selecting the same files
+        event.target.value = ''
     }
     
     handleModelLoaded(model, fileType) {
@@ -141,6 +206,7 @@ export class UIManager {
     
     handleClearModels() {
         this.sceneManager.clearModels()
+        this.modelLoaders.resetLoadedModelsCount()  // Reset position counter
         this.currentModel = null
         this.currentLoadedFileType = null
         this.hideConversionSection()
@@ -256,14 +322,79 @@ export class UIManager {
         }
     }
     
-    showLoadingState() {
-        // You can implement loading indicators here
-        console.log('Loading model...')
+    showLoadingState(message = 'Loading models...') {
+        // Create loading overlay if it doesn't exist
+        if (!this.loadingOverlay) {
+            this.loadingOverlay = document.createElement('div')
+            this.loadingOverlay.id = 'loading-overlay'
+            this.loadingOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+            `
+            
+            const loadingContent = document.createElement('div')
+            loadingContent.style.cssText = `
+                background: #333;
+                padding: 20px;
+                border-radius: 8px;
+                color: white;
+                text-align: center;
+            `
+            
+            this.loadingText = document.createElement('div')
+            this.loadingText.style.marginBottom = '10px'
+            
+            const spinner = document.createElement('div')
+            spinner.style.cssText = `
+                border: 3px solid #f3f3f3;
+                border-top: 3px solid #3498db;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                animation: spin 1s linear infinite;
+                margin: 0 auto;
+            `
+            
+            // Add CSS animation
+            const style = document.createElement('style')
+            style.textContent = `
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `
+            document.head.appendChild(style)
+            
+            loadingContent.appendChild(this.loadingText)
+            loadingContent.appendChild(spinner)
+            this.loadingOverlay.appendChild(loadingContent)
+        }
+        
+        this.loadingText.textContent = message
+        document.body.appendChild(this.loadingOverlay)
+        console.log(message)
+    }
+    
+    updateLoadingMessage(message) {
+        if (this.loadingText) {
+            this.loadingText.textContent = message
+        }
+        console.log(message)
     }
     
     hideLoadingState() {
-        // You can implement hiding loading indicators here
         console.log('Loading complete')
+        if (this.loadingOverlay && this.loadingOverlay.parentNode) {
+            this.loadingOverlay.parentNode.removeChild(this.loadingOverlay)
+        }
     }
     
     showError(message) {

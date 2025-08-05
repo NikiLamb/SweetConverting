@@ -179,19 +179,44 @@ export class SceneManager {
         // Offset the camera position to ensure the model is fully visible
         cameraZ *= 1.5 // Add some padding
         
-        // Set camera position to look at the model from a good angle
-        this.camera.position.set(
-            center.x + cameraZ * 0.5,
-            center.y + cameraZ * 0.5,
-            center.z + cameraZ
-        )
+        // Position camera to look at the model from a good angle
+        this.camera.position.set(center.x + cameraZ, center.y + cameraZ, center.z + cameraZ)
         this.camera.lookAt(center)
         
-        // Update controls target to the center of the model
+        // Update controls target
         this.controls.target.copy(center)
         this.controls.update()
+    }
+    
+    recenterCameraOnAllModels() {
+        if (this.models.length === 0) return
         
-        console.log('Camera recentered on model:', { center, size, cameraZ })
+        // Create a bounding box that encompasses all models
+        const box = new THREE.Box3()
+        
+        this.models.forEach(model => {
+            const modelBox = new THREE.Box3().setFromObject(model)
+            box.union(modelBox)
+        })
+        
+        const center = box.getCenter(new THREE.Vector3())
+        const size = box.getSize(new THREE.Vector3())
+        
+        // Get the max side of the bounding box to determine camera distance
+        const maxDim = Math.max(size.x, size.y, size.z)
+        const fov = this.camera.fov * (Math.PI / 180)
+        let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2))
+        
+        // Offset the camera position to ensure all models are visible
+        cameraZ *= 1.8 // Add more padding for multiple models
+        
+        // Position camera to look at all models from a good angle
+        this.camera.position.set(center.x + cameraZ, center.y + cameraZ, center.z + cameraZ)
+        this.camera.lookAt(center)
+        
+        // Update controls target
+        this.controls.target.copy(center)
+        this.controls.update()
     }
     
     animate() {

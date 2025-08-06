@@ -76,6 +76,37 @@
     margin-right: 10px;
 }
 
+/* Delete button styles */
+.delete-button {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: #818181;
+    border: 1px solid #989898;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+    padding: 0;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.model-tree-item:hover .delete-button {
+    opacity: 1;
+    visibility: visible;
+}
+
+.delete-button:hover {
+    background-color: #6a6a6a;
+}
+
+.delete-button svg {
+    pointer-events: none;
+}
+
 .file-type-tag {
     height: 14px;
     line-height: 14px;

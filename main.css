@@ -66,6 +66,8 @@
     justify-content: space-between;
     align-items: center;
     padding: 4px 0;
+    cursor: pointer;
+    user-select: none;
 }
 
 .model-name {
@@ -129,4 +131,26 @@
 
 .file-type-tag.usdz {
     background-color: #BA5D00;
+}
+
+/* Model selection styles */
+.model-tree-item.selected {
+    background-color: #4E4E4E;
+    border-radius: 3px;
+}
+
+.model-tree-item.selected .model-name,
+.model-tree-item.selected .file-type-tag {
+    background-color: transparent;
+}
+
+/* Enhanced delete button visibility for selected items */
+.model-tree-item.selected .delete-button {
+    opacity: 1;
+    visibility: visible;
+    background-color: #999;
+}
+
+.model-tree-item.selected .delete-button:hover {
+    background-color: #777;
 }

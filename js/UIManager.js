@@ -8,6 +8,10 @@ export class UIManager {
         this.currentLoadedFileType = null
         this.currentModel = null
         
+        // Model selection state
+        this.selectedModels = new Set()
+        this.lastSelectedIndex = -1
+        
         // UI Elements
         this.elements = {}
         
@@ -382,6 +386,15 @@ export class UIManager {
             tagElement.className = `file-type-tag ${meta.fileType.toLowerCase()}`
             tagElement.textContent = meta.fileType
             
+            // Add selection functionality
+            item.setAttribute('data-index', index)
+            item.addEventListener('click', (e) => this.handleModelSelection(e, index))
+            
+            // Apply selection state
+            if (this.selectedModels.has(index)) {
+                item.classList.add('selected')
+            }
+            
             item.appendChild(nameElement)
             item.appendChild(deleteButton)
             item.appendChild(tagElement)
@@ -390,13 +403,71 @@ export class UIManager {
         })
     }
     
+    handleModelSelection(event, index) {
+        // Prevent event bubbling to avoid conflicts
+        event.stopPropagation()
+        
+        // Don't select if clicking on delete button
+        if (event.target.closest('.delete-button')) {
+            return
+        }
+        
+        if (event.ctrlKey || event.metaKey) {
+            // Ctrl+click: Toggle selection
+            if (this.selectedModels.has(index)) {
+                this.selectedModels.delete(index)
+            } else {
+                this.selectedModels.add(index)
+            }
+            this.lastSelectedIndex = index
+        } else if (event.shiftKey && this.lastSelectedIndex !== -1) {
+            // Shift+click: Select range
+            const start = Math.min(this.lastSelectedIndex, index)
+            const end = Math.max(this.lastSelectedIndex, index)
+            for (let i = start; i <= end; i++) {
+                this.selectedModels.add(i)
+            }
+        } else {
+            // Normal click: Select only this model
+            this.selectedModels.clear()
+            this.selectedModels.add(index)
+            this.lastSelectedIndex = index
+        }
+        
+        // Update the visual state and selection counter
+        this.updateModelTree()
+        this.updateSelectionCounter()
+    }
+    
     handleRemoveModel(index) {
         // Remove the model from the scene
         const removed = this.sceneManager.removeModel(index)
         
         if (removed) {
+            // Remove from selection if it was selected
+            this.selectedModels.delete(index)
+            
+            // Adjust selection indices (shift down indices that are greater than removed index)
+            const newSelection = new Set()
+            for (const selectedIndex of this.selectedModels) {
+                if (selectedIndex > index) {
+                    newSelection.add(selectedIndex - 1)
+                } else {
+                    newSelection.add(selectedIndex)
+                }
+            }
+            this.selectedModels = newSelection
+            
+            // Adjust lastSelectedIndex
+            if (this.lastSelectedIndex > index) {
+                this.lastSelectedIndex--
+            } else if (this.lastSelectedIndex === index) {
+                this.lastSelectedIndex = -1
+            }
+            
             // Update the model tree
             this.updateModelTree()
+            this.updateSelectionCounter()
             
             // Update conversion section visibility
             const models = this.sceneManager.getModels()
@@ -404,6 +475,8 @@ export class UIManager {
                 this.hideConversionSection()
                 this.currentLoadedFileType = null
                 this.currentModel = null
+                this.selectedModels.clear()
+                this.lastSelectedIndex = -1
             }
         }
     }
@@ -487,6 +560,37 @@ export class UIManager {
         // You can implement error display here
         console.error(message)
         alert(message) // Simple alert for now
+    }
+    
+    updateSelectionCounter() {
+        // Create or update the selection counter element
+        let counter = document.getElementById('selection-counter')
+        
+        if (!counter) {
+            counter = document.createElement('div')
+            counter.id = 'selection-counter'
+            counter.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 20px;
+                color: white;
+                font-size: 12px;
+                background-color: rgba(0, 0, 0, 0.7);
+                padding: 8px 12px;
+                border-radius: 4px;
+                z-index: 1000;
+                display: none;
+            `
+            document.body.appendChild(counter)
+        }
+        
+        const selectedCount = this.selectedModels.size
+        if (selectedCount > 0) {
+            counter.textContent = `${selectedCount} model${selectedCount === 1 ? '' : 's'} selected`
+            counter.style.display = 'block'
+        } else {
+            counter.style.display = 'none'
+        }
     }
     
     // Getter methods for accessing current state

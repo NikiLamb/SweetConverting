@@ -365,16 +365,47 @@ export class UIManager {
             nameElement.className = 'model-name'
             nameElement.textContent = nameWithoutExtension
             
+            // Create delete button with trash icon
+            const deleteButton = document.createElement('button')
+            deleteButton.className = 'delete-button'
+            deleteButton.setAttribute('data-index', index)
+            deleteButton.innerHTML = `
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" 
+                          stroke="#818181" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            `
+            deleteButton.addEventListener('click', () => this.handleRemoveModel(index))
+            
             // Create file type tag
             const tagElement = document.createElement('div')
             tagElement.className = `file-type-tag ${meta.fileType.toLowerCase()}`
             tagElement.textContent = meta.fileType
             
             item.appendChild(nameElement)
+            item.appendChild(deleteButton)
             item.appendChild(tagElement)
             
             this.elements.modelTreeContent.appendChild(item)
         })
+    }
+    
+    handleRemoveModel(index) {
+        // Remove the model from the scene
+        const removed = this.sceneManager.removeModel(index)
+        
+        if (removed) {
+            // Update the model tree
+            this.updateModelTree()
+            
+            // Update conversion section visibility
+            const models = this.sceneManager.getModels()
+            if (models.length === 0) {
+                this.hideConversionSection()
+                this.currentLoadedFileType = null
+                this.currentModel = null
+            }
+        }
     }
     
     showLoadingState(message = 'Loading models...') {

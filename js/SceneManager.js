@@ -135,6 +135,21 @@ export class SceneManager {
         this.modelMetadata.length = 0
     }
     
+    removeModel(index) {
+        if (index >= 0 && index < this.models.length) {
+            // Remove model from scene
+            this.scene.remove(this.models[index])
+            
+            // Remove from arrays
+            this.models.splice(index, 1)
+            this.modelMetadata.splice(index, 1)
+            
+            console.log(`Model at index ${index} removed from scene`)
+            return true
+        }
+        return false
+    }
+    
     dispose() {
         // No special disposal needed for GridHelper since it uses standard Three.js objects
     }

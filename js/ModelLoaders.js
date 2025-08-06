@@ -54,11 +54,20 @@ export class ModelLoaders {
                 try {
                     const glbModel = glb.scene
                     
-                    // Position model at origin (0,0,0)
-                    glbModel.position.set(0, 0, 0)
+                    // Position model based on loaded models count
+                    const xOffset = this.loadedModelsCount * 2  // 2 units spacing between models
+                    glbModel.position.set(xOffset, 0, 0)
                     this.loadedModelsCount++
                     
-                    this.sceneManager.addModel(glbModel)
+                    // Add model to scene with metadata
+                    const metadata = {
+                        filename: file.name,
+                        fileType: 'GLB',
+                        originalFile: file
+                    }
+                    this.sceneManager.addModel(glbModel, metadata)
+                    this.sceneManager.recenterCameraOnAllModels()
+                    
                     console.log('GLB model loaded successfully')
                     resolve({ model: glbModel, fileType: 'glb' })
                 } catch (error) {
@@ -99,17 +108,22 @@ export class ModelLoaders {
                 // Pivot 90 degrees around the X axis
                 stlModel.rotateX(-Math.PI / 2)
                 
-                // Position model at origin (0,0,0)
-                stlModel.position.set(0, 0, 0)
+                // Position model based on loaded models count
+                const xOffset = this.loadedModelsCount * 2  // 2 units spacing between models
+                stlModel.position.set(xOffset, 0, 0)
                 this.loadedModelsCount++
                 
-                this.sceneManager.addModel(stlModel)
+                // Add model to scene with metadata
+                const metadata = {
+                    filename: file.name,
+                    fileType: 'STL',
+                    originalFile: file
+                }
+                this.sceneManager.addModel(stlModel, metadata)
+                this.sceneManager.recenterCameraOnAllModels()
                 
-                console.log("STL Model added")
-                resolve({
-                    model: stlModel,
-                    fileType: 'stl'
-                })
+                console.log('STL model loaded successfully')
+                resolve({ model: stlModel, fileType: 'stl' })
             } catch (error) {
                 reject(error)
             }
@@ -127,17 +141,22 @@ export class ModelLoaders {
                 const data = reader.result
                 const usdzModel = this.usdzLoader.parse(data)
                 
-                // Position model at origin (0,0,0)
-                usdzModel.position.set(0, 0, 0)
+                // Position model based on loaded models count
+                const xOffset = this.loadedModelsCount * 2  // 2 units spacing between models
+                usdzModel.position.set(xOffset, 0, 0)
                 this.loadedModelsCount++
                 
-                this.sceneManager.addModel(usdzModel)
+                // Add model to scene with metadata
+                const metadata = {
+                    filename: file.name,
+                    fileType: 'USDZ',
+                    originalFile: file
+                }
+                this.sceneManager.addModel(usdzModel, metadata)
+                this.sceneManager.recenterCameraOnAllModels()
                 
-                console.log("USDZ Model added successfully")
-                resolve({
-                    model: usdzModel,
-                    fileType: 'usdz'
-                })
+                console.log('USDZ model loaded successfully')
+                resolve({ model: usdzModel, fileType: 'usdz' })
             } catch (error) {
                 console.error("Error loading USDZ file:", error)
                 reject(error)

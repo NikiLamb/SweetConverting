@@ -42,6 +42,10 @@ export class UIManager {
         this.elements.convertButton = document.getElementById('convert-button')
         this.elements.conversionStatus = document.getElementById('conversion-status')
         
+        // Model tree UI elements
+        this.elements.modelTreeContainer = document.getElementById('model-tree-container')
+        this.elements.modelTreeContent = document.getElementById('model-tree-content')
+        
         this.validateUIElements()
     }
     
@@ -160,6 +164,9 @@ export class UIManager {
                 // Recenter camera to show all loaded models
                 this.sceneManager.recenterCameraOnAllModels()
                 
+                // Update the model tree
+                this.updateModelTree()
+                
                 // Update status message
                 let message = `Successfully loaded ${results.successful} model${results.successful > 1 ? 's' : ''}`
                 if (results.failed > 0) {
@@ -198,6 +205,9 @@ export class UIManager {
         // Ensure viewer container has the renderer
         this.setupViewerContainer()
         
+        // Update the model tree
+        this.updateModelTree()
+        
         console.log(`${fileType.toUpperCase()} Model loaded successfully`)
     }
     
@@ -207,6 +217,9 @@ export class UIManager {
         this.currentModel = null
         this.currentLoadedFileType = null
         this.hideConversionSection()
+        
+        // Update the model tree (will hide it since no models)
+        this.updateModelTree()
         
         console.log("Models cleared")
     }
@@ -317,6 +330,51 @@ export class UIManager {
         if (this.elements.conversionStatus) {
             this.elements.conversionStatus.textContent = message
         }
+    }
+    
+    updateModelTree() {
+        const models = this.sceneManager.getModels()
+        const metadata = this.sceneManager.getModelMetadata()
+        
+        if (!this.elements.modelTreeContainer || !this.elements.modelTreeContent) {
+            return
+        }
+        
+        // Show/hide the model tree based on whether models are loaded
+        if (models.length === 0) {
+            this.elements.modelTreeContainer.style.display = 'none'
+            return
+        }
+        
+        this.elements.modelTreeContainer.style.display = 'block'
+        
+        // Clear existing content
+        this.elements.modelTreeContent.innerHTML = ''
+        
+        // Add each model to the tree
+        metadata.forEach((meta, index) => {
+            const item = document.createElement('div')
+            item.className = 'model-tree-item'
+            
+            // Extract filename without extension
+            const filename = meta.filename || 'Unnamed Model'
+            const nameWithoutExtension = filename.substring(0, filename.lastIndexOf('.')) || filename
+            
+            // Create model name element
+            const nameElement = document.createElement('div')
+            nameElement.className = 'model-name'
+            nameElement.textContent = nameWithoutExtension
+            
+            // Create file type tag
+            const tagElement = document.createElement('div')
+            tagElement.className = `file-type-tag ${meta.fileType.toLowerCase()}`
+            tagElement.textContent = meta.fileType
+            
+            item.appendChild(nameElement)
+            item.appendChild(tagElement)
+            
+            this.elements.modelTreeContent.appendChild(item)
+        })
     }
     
     showLoadingState(message = 'Loading models...') {

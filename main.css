@@ -36,3 +36,66 @@
 #conversion-status {
     font-style: italic;
 }
+
+/* Model Tree Styles */
+#model-tree-container {
+    width: 300px;
+    min-height: 35px;
+    max-height: 530px;
+    background-color: #333333;
+    border: 1px solid #555555;
+    border-radius: 5px;
+    padding: 10px;
+    margin-top: 10px;
+    overflow-y: auto;
+}
+
+#model-tree-title {
+    font-size: 13px;
+    color: #F5F5F5;
+    margin-bottom: 8px;
+}
+
+#model-tree-content {
+    font-size: 13px;
+    color: #F5F5F5;
+}
+
+.model-tree-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.model-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-right: 10px;
+}
+
+.file-type-tag {
+    height: 14px;
+    line-height: 14px;
+    padding: 0 6px;
+    border-radius: 2px;
+    font-size: 10px;
+    color: #F5F5F5;
+    display: inline-block;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.file-type-tag.glb {
+    background-color: #0011C8;
+}
+
+.file-type-tag.stl {
+    background-color: #007315;
+}
+
+.file-type-tag.usdz {
+    background-color: #BA5D00;
+}

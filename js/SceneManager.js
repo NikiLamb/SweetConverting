@@ -6,6 +6,7 @@ export class SceneManager {
         console.log('SceneManager constructor called with canvas:', canvas)
         this.canvas = canvas
         this.models = []
+        this.modelMetadata = [] // Store metadata for each model
         this.animationFrame = 0
         
         this.initScene()
@@ -120,8 +121,9 @@ export class SceneManager {
         window.addEventListener('resize', this.onWindowResize.bind(this), false)
     }
     
-    addModel(model) {
+    addModel(model, fileMetadata = {}) {
         this.models.push(model)
+        this.modelMetadata.push(fileMetadata)
         this.scene.add(model)
     }
     
@@ -130,6 +132,7 @@ export class SceneManager {
             this.scene.remove(this.models[i])
         }
         this.models.length = 0
+        this.modelMetadata.length = 0
     }
     
     dispose() {
@@ -138,6 +141,10 @@ export class SceneManager {
     
     getModels() {
         return this.models
+    }
+    
+    getModelMetadata() {
+        return this.modelMetadata
     }
 
     getCurrentModel() {

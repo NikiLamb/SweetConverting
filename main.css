@@ -139,8 +139,7 @@
     border-radius: 3px;
 }
 
-.model-tree-item.selected .model-name,
-.model-tree-item.selected .file-type-tag {
+.model-tree-item.selected .model-name {
     background-color: transparent;
 }
 

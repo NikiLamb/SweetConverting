@@ -65,7 +65,23 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 4px 0;
+    padding: 6px 8px;
+    margin: 2px -8px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+}
+
+.model-tree-item:hover {
+    background-color: #404040;
+}
+
+.model-tree-item.selected {
+    background-color: #2563eb;
+}
+
+.model-tree-item.selected:hover {
+    background-color: #1d4ed8;
 }
 
 .model-name {

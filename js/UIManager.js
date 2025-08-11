@@ -390,14 +390,15 @@ export class UIManager {
                 item.classList.add('selected')
             }
             
-            // Create checkbox for selection
-            const checkbox = document.createElement('input')
-            checkbox.type = 'checkbox'
-            checkbox.className = 'model-checkbox'
-            checkbox.checked = isSelected
-            checkbox.addEventListener('change', (e) => {
+            // Add click event listener for selection
+            item.addEventListener('click', (e) => {
+                // Don't trigger selection if clicking on delete button
+                if (e.target.closest('.delete-button')) {
+                    return
+                }
+                
                 e.stopPropagation()
-                this.toggleModelSelection(index)
+                this.handleModelSelection(index, e.ctrlKey || e.metaKey)
             })
             
             // Extract filename without extension
@@ -429,7 +430,6 @@ export class UIManager {
             tagElement.className = `file-type-tag ${meta.fileType.toLowerCase()}`
             tagElement.textContent = meta.fileType
             
-            item.appendChild(checkbox)
             item.appendChild(nameElement)
             item.appendChild(deleteButton)
             item.appendChild(tagElement)
@@ -470,15 +470,35 @@ export class UIManager {
         }
     }
     
-    toggleModelSelection(index) {
-        if (this.selectedModels.has(index)) {
-            this.selectedModels.delete(index)
-            console.log(`Model ${index} unselected. Selected models:`, Array.from(this.selectedModels))
+    handleModelSelection(index, isMultiSelect) {
+        if (isMultiSelect) {
+            // Multi-select mode: add/remove from selection
+            if (this.selectedModels.has(index)) {
+                this.selectedModels.delete(index)
+                console.log(`Model ${index} unselected. Selected models:`, Array.from(this.selectedModels))
+            } else {
+                this.selectedModels.add(index)
+                console.log(`Model ${index} selected. Selected models:`, Array.from(this.selectedModels))
+            }
         } else {
-            this.selectedModels.add(index)
-            console.log(`Model ${index} selected. Selected models:`, Array.from(this.selectedModels))
+            // Single select mode: toggle selection or select only this model
+            if (this.selectedModels.has(index) && this.selectedModels.size === 1) {
+                // If only this model is selected, unselect it
+                this.selectedModels.clear()
+                console.log(`Model ${index} unselected. Selected models:`, Array.from(this.selectedModels))
+            } else {
+                // Select only this model
+                this.selectedModels.clear()
+                this.selectedModels.add(index)
+                console.log(`Model ${index} selected. Selected models:`, Array.from(this.selectedModels))
+            }
         }
         this.updateModelTree()
+    }
+
+    toggleModelSelection(index) {
+        // Keep this method for backward compatibility, but use the new handler
+        this.handleModelSelection(index, false)
     }
     
     unselectAllModels() {

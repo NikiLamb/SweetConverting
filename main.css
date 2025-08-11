@@ -65,22 +65,22 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 4px 0;
+    padding: 8px;
     border-radius: 3px;
-    transition: background-color 0.2s ease;
+    cursor: pointer;
+    margin-bottom: 2px;
+}
+
+.model-tree-item:hover {
+    background-color: #4a4a4a;
 }
 
 .model-tree-item.selected {
-    background-color: #444444;
+    background-color: #0066cc;
 }
 
-/* Checkbox styles */
-.model-checkbox {
-    width: 14px;
-    height: 14px;
-    margin-right: 8px;
-    cursor: pointer;
-    accent-color: #0066cc;
+.model-tree-item.selected:hover {
+    background-color: #0052a3;
 }
 
 .model-name {
@@ -106,7 +106,6 @@
     padding: 0;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
 .model-tree-item:hover .delete-button {

@@ -8,6 +8,9 @@ export class UIManager {
         this.currentLoadedFileType = null
         this.currentModel = null
         
+        // Selection state
+        this.selectedModels = new Set()
+        
         // UI Elements
         this.elements = {}
         
@@ -101,7 +104,27 @@ export class UIManager {
             })
         }
         
+        // Selection event listeners
+        this.setupSelectionEventListeners()
+        
         console.log('Event listeners set up successfully')
+    }
+    
+    setupSelectionEventListeners() {
+        // Click outside to unselect all models
+        document.addEventListener('click', (e) => {
+            const modelTreeContainer = this.elements.modelTreeContainer
+            if (modelTreeContainer && !modelTreeContainer.contains(e.target)) {
+                this.unselectAllModels()
+            }
+        })
+        
+        // ESC key to unselect all models
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.unselectAllModels()
+            }
+        })
     }
     
     setupViewerContainer() {
@@ -216,6 +239,10 @@ export class UIManager {
         this.modelLoaders.resetLoadedModelsCount()  // Reset position counter
         this.currentModel = null
         this.currentLoadedFileType = null
+        
+        // Clear selection state
+        this.selectedModels.clear()
+        
         this.hideConversionSection()
         
         // Update the model tree (will hide it since no models)
@@ -355,6 +382,23 @@ export class UIManager {
         metadata.forEach((meta, index) => {
             const item = document.createElement('div')
             item.className = 'model-tree-item'
+            item.setAttribute('data-index', index)
+            
+            // Check if this model is selected
+            const isSelected = this.selectedModels.has(index)
+            if (isSelected) {
+                item.classList.add('selected')
+            }
+            
+            // Create checkbox for selection
+            const checkbox = document.createElement('input')
+            checkbox.type = 'checkbox'
+            checkbox.className = 'model-checkbox'
+            checkbox.checked = isSelected
+            checkbox.addEventListener('change', (e) => {
+                e.stopPropagation()
+                this.toggleModelSelection(index)
+            })
             
             // Extract filename without extension
             const filename = meta.filename || 'Unnamed Model'
@@ -375,13 +419,17 @@ export class UIManager {
                           stroke="#818181" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             `
-            deleteButton.addEventListener('click', () => this.handleRemoveModel(index))
+            deleteButton.addEventListener('click', (e) => {
+                e.stopPropagation()
+                this.handleRemoveModel(index)
+            })
             
             // Create file type tag
             const tagElement = document.createElement('div')
             tagElement.className = `file-type-tag ${meta.fileType.toLowerCase()}`
             tagElement.textContent = meta.fileType
             
+            item.appendChild(checkbox)
             item.appendChild(nameElement)
             item.appendChild(deleteButton)
             item.appendChild(tagElement)
@@ -391,6 +439,20 @@ export class UIManager {
     }
     
     handleRemoveModel(index) {
+        // Remove the model from selection if it was selected
+        this.selectedModels.delete(index)
+        
+        // Update selection indices for models that come after the removed one
+        const newSelectedModels = new Set()
+        for (const selectedIndex of this.selectedModels) {
+            if (selectedIndex > index) {
+                newSelectedModels.add(selectedIndex - 1)
+            } else {
+                newSelectedModels.add(selectedIndex)
+            }
+        }
+        this.selectedModels = newSelectedModels
+        
         // Remove the model from the scene
         const removed = this.sceneManager.removeModel(index)
         
@@ -405,6 +467,25 @@ export class UIManager {
                 this.currentLoadedFileType = null
                 this.currentModel = null
             }
+        }
+    }
+    
+    toggleModelSelection(index) {
+        if (this.selectedModels.has(index)) {
+            this.selectedModels.delete(index)
+            console.log(`Model ${index} unselected. Selected models:`, Array.from(this.selectedModels))
+        } else {
+            this.selectedModels.add(index)
+            console.log(`Model ${index} selected. Selected models:`, Array.from(this.selectedModels))
+        }
+        this.updateModelTree()
+    }
+    
+    unselectAllModels() {
+        if (this.selectedModels.size > 0) {
+            console.log('Unselecting all models. Previously selected:', Array.from(this.selectedModels))
+            this.selectedModels.clear()
+            this.updateModelTree()
         }
     }
     

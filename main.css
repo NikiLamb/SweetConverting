@@ -16,7 +16,7 @@
     padding: 8px 12px;
     cursor: pointer;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: 14px;
 }
 
 .custom-button:hover:not(:disabled) {
@@ -51,13 +51,13 @@
 }
 
 #model-tree-title {
-    font-size: 13px;
+    font-size: 18px;
     color: #F5F5F5;
     margin-bottom: 8px;
 }
 
 #model-tree-content {
-    font-size: 13px;
+    font-size: 15px;
     color: #F5F5F5;
 }
 

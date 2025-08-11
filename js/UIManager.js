@@ -10,6 +10,7 @@ export class UIManager {
         
         // Selection state
         this.selectedModels = new Set()
+        this.lastSelectedIndex = null // Track the last selected index for range selection
         
         // UI Elements
         this.elements = {}
@@ -242,9 +243,10 @@ export class UIManager {
         
         // Clear selection state
         this.selectedModels.clear()
+        this.lastSelectedIndex = null
         
-        this.hideConversionSection()
-        
+        // Hide conversion section
+        this.elements.conversionSection.style.display = 'none'
         // Update the model tree (will hide it since no models)
         this.updateModelTree()
         
@@ -398,7 +400,19 @@ export class UIManager {
                 }
                 
                 e.stopPropagation()
-                this.handleModelSelection(index, e.ctrlKey || e.metaKey)
+                
+                if (e.shiftKey) {
+                    // Range selection with Shift+click
+                    this.handleRangeSelection(index)
+                } else if (e.ctrlKey || e.metaKey) {
+                    // Multi-select with Ctrl/Cmd+click
+                    this.handleModelSelection(index, true)
+                    this.lastSelectedIndex = index
+                } else {
+                    // Single selection
+                    this.handleModelSelection(index, false)
+                    this.lastSelectedIndex = index
+                }
             })
             
             // Extract filename without extension
@@ -441,6 +455,13 @@ export class UIManager {
     handleRemoveModel(index) {
         // Remove the model from selection if it was selected
         this.selectedModels.delete(index)
+        
+        // Update lastSelectedIndex if needed
+        if (this.lastSelectedIndex === index) {
+            this.lastSelectedIndex = null
+        } else if (this.lastSelectedIndex !== null && this.lastSelectedIndex > index) {
+            this.lastSelectedIndex -= 1
+        }
         
         // Update selection indices for models that come after the removed one
         const newSelectedModels = new Set()
@@ -496,6 +517,29 @@ export class UIManager {
         this.updateModelTree()
     }
 
+    handleRangeSelection(endIndex) {
+        // Range selection using Shift+click
+        if (this.lastSelectedIndex === null) {
+            // If no previous selection, treat as single selection
+            this.selectedModels.clear()
+            this.selectedModels.add(endIndex)
+            this.lastSelectedIndex = endIndex
+        } else {
+            // Select range from lastSelectedIndex to endIndex
+            const startIndex = Math.min(this.lastSelectedIndex, endIndex)
+            const endIndexActual = Math.max(this.lastSelectedIndex, endIndex)
+            
+            // Clear current selection and select the range
+            this.selectedModels.clear()
+            for (let i = startIndex; i <= endIndexActual; i++) {
+                this.selectedModels.add(i)
+            }
+            
+            console.log(`Range selected from ${startIndex} to ${endIndexActual}. Selected models:`, Array.from(this.selectedModels))
+        }
+        this.updateModelTree()
+    }
+    
     toggleModelSelection(index) {
         // Keep this method for backward compatibility, but use the new handler
         this.handleModelSelection(index, false)
@@ -505,6 +549,7 @@ export class UIManager {
         if (this.selectedModels.size > 0) {
             console.log('Unselecting all models. Previously selected:', Array.from(this.selectedModels))
             this.selectedModels.clear()
+            this.lastSelectedIndex = null
             this.updateModelTree()
         }
     }

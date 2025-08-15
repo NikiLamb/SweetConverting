@@ -44,7 +44,6 @@ export class UIManager {
         this.elements.conversionSection = document.getElementById('conversion-section')
         this.elements.formatSelector = document.getElementById('format-selector')
         this.elements.convertButton = document.getElementById('convert-button')
-        this.elements.conversionStatus = document.getElementById('conversion-status')
         
         // Model tree UI elements
         this.elements.modelTreeContainer = document.getElementById('model-tree-container')
@@ -55,7 +54,7 @@ export class UIManager {
     
     validateUIElements() {
         const mainElements = ['modelLoadButton', 'modelFileInput', 'clearButton', 'viewerContainer']
-        const conversionElements = ['conversionSection', 'formatSelector', 'convertButton', 'conversionStatus']
+        const conversionElements = ['conversionSection', 'formatSelector', 'convertButton']
         
         const missingMain = mainElements.filter(key => !this.elements[key])
         const missingConversion = conversionElements.filter(key => !this.elements[key])
@@ -275,39 +274,16 @@ export class UIManager {
         // Get all models from the scene for export
         const allModels = this.sceneManager.getAllModelsAsGroup()
         if (!allModels) {
-            this.updateConversionStatus('No models to export!')
-            setTimeout(() => this.updateConversionStatus(''), 3000)
             return
         }
         
         this.elements.convertButton.disabled = true
         const modelCount = this.sceneManager.getModels().length
-        const statusPrefix = modelCount > 1 ? `Converting ${modelCount} models...` : 'Converting...'
-        this.updateConversionStatus(statusPrefix)
         
         try {
             await this.modelConverter.exportModel(allModels, selectedFormat)
-            const successMessage = modelCount > 1 ? `All ${modelCount} models exported successfully!` : 'Conversion completed!'
-            this.updateConversionStatus(successMessage)
-            setTimeout(() => {
-                // Reset to show model count if multiple models
-                if (modelCount > 1) {
-                    this.updateConversionStatus(`${modelCount} models loaded - all will be exported together`)
-                } else {
-                    this.updateConversionStatus('')
-                }
-            }, 3000)
         } catch (error) {
             console.error('Export error:', error)
-            this.updateConversionStatus('Export failed!')
-            setTimeout(() => {
-                // Reset to show model count if multiple models
-                if (modelCount > 1) {
-                    this.updateConversionStatus(`${modelCount} models loaded - all will be exported together`)
-                } else {
-                    this.updateConversionStatus('')
-                }
-            }, 3000)
         } finally {
             this.elements.convertButton.disabled = false
         }
@@ -343,13 +319,7 @@ export class UIManager {
         }
         this.elements.formatSelector.value = ''
         
-        // Update status to show how many models are loaded
-        const modelCount = this.sceneManager.getModels().length
-        if (modelCount > 1) {
-            this.updateConversionStatus(`${modelCount} models loaded - all will be exported together`)
-        } else {
-            this.updateConversionStatus('')
-        }
+        // Note: modelCount tracking removed along with status display
     }
     
     showConversionSection() {
@@ -361,12 +331,6 @@ export class UIManager {
     hideConversionSection() {
         if (this.elements.conversionSection) {
             this.elements.conversionSection.style.display = 'none'
-        }
-    }
-    
-    updateConversionStatus(message) {
-        if (this.elements.conversionStatus) {
-            this.elements.conversionStatus.textContent = message
         }
     }
     

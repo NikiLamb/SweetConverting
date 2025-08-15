@@ -86,25 +86,10 @@ export class SceneManager {
     
     initGrid() {
         // Add a simple grid helper that stays fixed at the origin
-        const gridHelper = new THREE.GridHelper(20, 20, 0x888888, 0x444444)
+        const gridHelper = new THREE.GridHelper(10000, 10000, 0x888888, 0x444444)
         gridHelper.name = 'GridHelper'
         this.scene.add(gridHelper)
         console.log('Added GridHelper')
-        
-        // Add a simple test plane (the red square) to verify rendering
-        const testGeometry = new THREE.PlaneGeometry(10, 10)
-        const testMaterial = new THREE.MeshBasicMaterial({ 
-            color: 0xff0000, 
-            transparent: true, 
-            opacity: 0.5,
-            side: THREE.DoubleSide
-        })
-        const testPlane = new THREE.Mesh(testGeometry, testMaterial)
-        testPlane.rotation.x = -Math.PI / 2
-        testPlane.position.y = 0.01
-        testPlane.name = 'TestPlane'
-        this.scene.add(testPlane)
-        console.log('Added red test plane')
         
         console.log('Final scene children count:', this.scene.children.length)
     }

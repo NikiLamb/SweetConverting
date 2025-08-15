@@ -171,6 +171,15 @@ export class UIManager {
                     // Update state for the last loaded model
                     this.currentModel = result.model
                     this.currentLoadedFileType = result.fileType
+                    
+                    // Show model tree and update title immediately after first successful load
+                    if (results.successful === 1) {
+                        const models = this.sceneManager.getModels()
+                        if (models.length > 0) {
+                            this.elements.modelTreeContainer.style.display = 'block'
+                            this.updateModelTreeTitle(models.length)
+                        }
+                    }
                 } catch (error) {
                     console.error(`Error loading file ${file.name}:`, error)
                     results.failed++
@@ -361,6 +370,17 @@ export class UIManager {
         }
     }
     
+    updateModelTreeTitle(modelCount) {
+        const titleElement = document.getElementById('model-tree-title')
+        if (titleElement) {
+            if (modelCount === 1) {
+                titleElement.textContent = '1 model loaded'
+            } else {
+                titleElement.textContent = `${modelCount} models loaded`
+            }
+        }
+    }
+    
     updateModelTree() {
         const models = this.sceneManager.getModels()
         const metadata = this.sceneManager.getModelMetadata()
@@ -376,6 +396,9 @@ export class UIManager {
         }
         
         this.elements.modelTreeContainer.style.display = 'block'
+        
+        // Update the model tree title with model count
+        this.updateModelTreeTitle(models.length)
         
         // Clear existing content
         this.elements.modelTreeContent.innerHTML = ''

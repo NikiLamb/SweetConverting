@@ -8,6 +8,7 @@ export class SceneManager {
         this.models = []
         this.modelMetadata = [] // Store metadata for each model
         this.animationFrame = 0
+        this.currentGizmo = null // Store the current origin gizmo
         
         this.initScene()
         this.initCamera()
@@ -244,5 +245,118 @@ export class SceneManager {
     
     getRendererElement() {
         return this.renderer.domElement
+    }
+    
+    /**
+     * Creates a 3D gizmo to represent the local origin of a model
+     * @param {THREE.Object3D} model - The model to create the gizmo for
+     * @returns {THREE.Group} - The gizmo group
+     */
+    createOriginGizmo(model) {
+        const gizmoGroup = new THREE.Group()
+        gizmoGroup.name = 'OriginGizmo'
+        
+        // Calculate appropriate gizmo size based on model bounding box
+        const box = new THREE.Box3().setFromObject(model)
+        const size = box.getSize(new THREE.Vector3())
+        const maxDim = Math.max(size.x, size.y, size.z)
+        const gizmoSize = Math.max(0.1, maxDim * 0.1) // 10% of model size, minimum 0.1
+        
+        // X axis (red)
+        const xGeometry = new THREE.CylinderGeometry(gizmoSize * 0.02, gizmoSize * 0.02, gizmoSize, 8)
+        const xMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 })
+        const xAxis = new THREE.Mesh(xGeometry, xMaterial)
+        xAxis.rotation.z = -Math.PI / 2
+        xAxis.position.x = gizmoSize / 2
+        
+        // X axis arrow
+        const xArrowGeometry = new THREE.ConeGeometry(gizmoSize * 0.05, gizmoSize * 0.2, 8)
+        const xArrow = new THREE.Mesh(xArrowGeometry, xMaterial)
+        xArrow.rotation.z = -Math.PI / 2
+        xArrow.position.x = gizmoSize
+        
+        // Y axis (green)
+        const yGeometry = new THREE.CylinderGeometry(gizmoSize * 0.02, gizmoSize * 0.02, gizmoSize, 8)
+        const yMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+        const yAxis = new THREE.Mesh(yGeometry, yMaterial)
+        yAxis.position.y = gizmoSize / 2
+        
+        // Y axis arrow
+        const yArrowGeometry = new THREE.ConeGeometry(gizmoSize * 0.05, gizmoSize * 0.2, 8)
+        const yArrow = new THREE.Mesh(yArrowGeometry, yMaterial)
+        yArrow.position.y = gizmoSize
+        
+        // Z axis (blue)
+        const zGeometry = new THREE.CylinderGeometry(gizmoSize * 0.02, gizmoSize * 0.02, gizmoSize, 8)
+        const zMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff })
+        const zAxis = new THREE.Mesh(zGeometry, zMaterial)
+        zAxis.rotation.x = Math.PI / 2
+        zAxis.position.z = gizmoSize / 2
+        
+        // Z axis arrow
+        const zArrowGeometry = new THREE.ConeGeometry(gizmoSize * 0.05, gizmoSize * 0.2, 8)
+        const zArrow = new THREE.Mesh(zArrowGeometry, zMaterial)
+        zArrow.rotation.x = Math.PI / 2
+        zArrow.position.z = gizmoSize
+        
+        // Add all components to the gizmo group
+        gizmoGroup.add(xAxis, xArrow, yAxis, yArrow, zAxis, zArrow)
+        
+        // Position the gizmo at the model's position
+        gizmoGroup.position.copy(model.position)
+        gizmoGroup.rotation.copy(model.rotation)
+        gizmoGroup.scale.copy(model.scale)
+        
+        return gizmoGroup
+    }
+    
+    /**
+     * Shows the origin gizmo for the specified model
+     * @param {number} modelIndex - Index of the model to show gizmo for
+     */
+    showOriginGizmo(modelIndex) {
+        this.hideOriginGizmo() // Remove any existing gizmo first
+        
+        if (modelIndex >= 0 && modelIndex < this.models.length) {
+            const model = this.models[modelIndex]
+            this.currentGizmo = this.createOriginGizmo(model)
+            this.scene.add(this.currentGizmo)
+            console.log(`Origin gizmo shown for model at index ${modelIndex}`)
+        }
+    }
+    
+    /**
+     * Hides the current origin gizmo
+     */
+    hideOriginGizmo() {
+        if (this.currentGizmo) {
+            this.scene.remove(this.currentGizmo)
+            
+            // Dispose of geometries and materials to prevent memory leaks
+            this.currentGizmo.traverse((child) => {
+                if (child.geometry) {
+                    child.geometry.dispose()
+                }
+                if (child.material) {
+                    child.material.dispose()
+                }
+            })
+            
+            this.currentGizmo = null
+            console.log('Origin gizmo hidden')
+        }
+    }
+    
+    /**
+     * Updates the gizmo position if it exists (useful when model transforms change)
+     * @param {number} modelIndex - Index of the model to update gizmo for
+     */
+    updateOriginGizmo(modelIndex) {
+        if (this.currentGizmo && modelIndex >= 0 && modelIndex < this.models.length) {
+            const model = this.models[modelIndex]
+            this.currentGizmo.position.copy(model.position)
+            this.currentGizmo.rotation.copy(model.rotation)
+            this.currentGizmo.scale.copy(model.scale)
+        }
     }
 }

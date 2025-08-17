@@ -12,6 +12,9 @@ export class UIManager {
         this.selectedModels = new Set()
         this.lastSelectedIndex = null // Track the last selected index for range selection
         
+        // Expansion state for model tree items
+        this.expandedModels = new Set()
+        
         // UI Elements
         this.elements = {}
         
@@ -253,6 +256,12 @@ export class UIManager {
         this.selectedModels.clear()
         this.lastSelectedIndex = null
         
+        // Clear expansion state
+        this.expandedModels.clear()
+        
+        // Hide gizmo
+        this.sceneManager.hideOriginGizmo()
+        
         // Hide conversion section
         this.elements.conversionSection.style.display = 'none'
         // Update the model tree (will hide it since no models)
@@ -345,6 +354,95 @@ export class UIManager {
         }
     }
     
+    toggleModelExpansion(index) {
+        if (this.expandedModels.has(index)) {
+            this.expandedModels.delete(index)
+        } else {
+            this.expandedModels.add(index)
+        }
+        this.updateModelTree()
+    }
+    
+    createExpandedContent(index) {
+        const models = this.sceneManager.getModels()
+        const model = models[index]
+        
+        if (!model) {
+            return null
+        }
+        
+        const expandedDiv = document.createElement('div')
+        expandedDiv.className = 'model-tree-expanded-content'
+        expandedDiv.setAttribute('data-model-index', index)
+        
+        // Get model position (coordinates)
+        const position = model.position
+        const x = position.x.toFixed(2)
+        const y = position.y.toFixed(2)
+        const z = position.z.toFixed(2)
+        
+        // Create coordinates display
+        const coordsDiv = document.createElement('div')
+        coordsDiv.className = 'model-coordinates'
+        
+        // X coordinate
+        const xCoord = document.createElement('div')
+        xCoord.className = 'coordinate-item'
+        xCoord.innerHTML = `
+            <div class="coordinate-symbol x-coord">X</div>
+            <span class="coordinate-value" data-coord="x">${x}</span>
+        `
+        
+        // Y coordinate
+        const yCoord = document.createElement('div')
+        yCoord.className = 'coordinate-item'
+        yCoord.innerHTML = `
+            <div class="coordinate-symbol y-coord">Y</div>
+            <span class="coordinate-value" data-coord="y">${y}</span>
+        `
+        
+        // Z coordinate
+        const zCoord = document.createElement('div')
+        zCoord.className = 'coordinate-item'
+        zCoord.innerHTML = `
+            <div class="coordinate-symbol z-coord">Z</div>
+            <span class="coordinate-value" data-coord="z">${z}</span>
+        `
+        
+        coordsDiv.appendChild(xCoord)
+        coordsDiv.appendChild(yCoord)
+        coordsDiv.appendChild(zCoord)
+        
+        expandedDiv.appendChild(coordsDiv)
+        
+        return expandedDiv
+    }
+    
+    /**
+     * Updates coordinate display for expanded models
+     * Should be called when model positions change
+     */
+    updateCoordinateDisplay() {
+        const models = this.sceneManager.getModels()
+        const expandedContents = document.querySelectorAll('.model-tree-expanded-content')
+        
+        expandedContents.forEach(content => {
+            const modelIndex = parseInt(content.getAttribute('data-model-index'))
+            if (modelIndex >= 0 && modelIndex < models.length) {
+                const model = models[modelIndex]
+                const position = model.position
+                
+                const xValue = content.querySelector('[data-coord="x"]')
+                const yValue = content.querySelector('[data-coord="y"]')
+                const zValue = content.querySelector('[data-coord="z"]')
+                
+                if (xValue) xValue.textContent = position.x.toFixed(2)
+                if (yValue) yValue.textContent = position.y.toFixed(2)
+                if (zValue) zValue.textContent = position.z.toFixed(2)
+            }
+        })
+    }
+
     updateModelTree() {
         const models = this.sceneManager.getModels()
         const metadata = this.sceneManager.getModelMetadata()
@@ -369,6 +467,9 @@ export class UIManager {
         
         // Add each model to the tree
         metadata.forEach((meta, index) => {
+            const container = document.createElement('div')
+            container.className = 'model-tree-container-item'
+            
             const item = document.createElement('div')
             item.className = 'model-tree-item'
             item.setAttribute('data-index', index)
@@ -379,10 +480,22 @@ export class UIManager {
                 item.classList.add('selected')
             }
             
+            // Check if this model is expanded
+            const isExpanded = this.expandedModels.has(index)
+            
+            // Create expand/collapse caret
+            const caret = document.createElement('div')
+            caret.className = 'model-tree-caret'
+            caret.innerHTML = isExpanded ? '▼' : '▶'
+            caret.addEventListener('click', (e) => {
+                e.stopPropagation()
+                this.toggleModelExpansion(index)
+            })
+            
             // Add click event listener for selection
             item.addEventListener('click', (e) => {
-                // Don't trigger selection if clicking on delete button
-                if (e.target.closest('.delete-button')) {
+                // Don't trigger selection if clicking on delete button or caret
+                if (e.target.closest('.delete-button') || e.target.closest('.model-tree-caret')) {
                     return
                 }
                 
@@ -431,11 +544,20 @@ export class UIManager {
             tagElement.className = `file-type-tag ${meta.fileType.toLowerCase()}`
             tagElement.textContent = meta.fileType
             
+            item.appendChild(caret)
             item.appendChild(nameElement)
             item.appendChild(deleteButton)
             item.appendChild(tagElement)
             
-            this.elements.modelTreeContent.appendChild(item)
+            container.appendChild(item)
+            
+            // Create expanded content area
+            if (isExpanded) {
+                const expandedContent = this.createExpandedContent(index)
+                container.appendChild(expandedContent)
+            }
+            
+            this.elements.modelTreeContent.appendChild(container)
         })
     }
     
@@ -465,6 +587,9 @@ export class UIManager {
         const removed = this.sceneManager.removeModel(index)
         
         if (removed) {
+            // Update gizmo display after model removal
+            this.updateGizmoDisplay()
+            
             // Update the model tree
             this.updateModelTree()
             
@@ -501,6 +626,9 @@ export class UIManager {
                 console.log(`Model ${index} selected. Selected models:`, Array.from(this.selectedModels))
             }
         }
+        
+        // Update gizmo display based on selection
+        this.updateGizmoDisplay()
         this.updateModelTree()
     }
 
@@ -524,6 +652,9 @@ export class UIManager {
             
             console.log(`Range selected from ${startIndex} to ${endIndexActual}. Selected models:`, Array.from(this.selectedModels))
         }
+        
+        // Update gizmo display based on selection
+        this.updateGizmoDisplay()
         this.updateModelTree()
     }
     
@@ -537,7 +668,23 @@ export class UIManager {
             console.log('Unselecting all models. Previously selected:', Array.from(this.selectedModels))
             this.selectedModels.clear()
             this.lastSelectedIndex = null
+            this.updateGizmoDisplay()
             this.updateModelTree()
+        }
+    }
+    
+    /**
+     * Updates the gizmo display based on current selection
+     * Shows gizmo for single selection, hides for multiple/no selection
+     */
+    updateGizmoDisplay() {
+        if (this.selectedModels.size === 1) {
+            // Show gizmo for single selected model
+            const selectedIndex = Array.from(this.selectedModels)[0]
+            this.sceneManager.showOriginGizmo(selectedIndex)
+        } else {
+            // Hide gizmo for multiple selection or no selection
+            this.sceneManager.hideOriginGizmo()
         }
     }
     

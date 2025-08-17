@@ -82,7 +82,7 @@ The application exposes a global `app` object for programmatic access:
 // Load a model programmatically
 const fileInput = document.createElement('input');
 fileInput.type = 'file';
-fileInput.accept = '.glb,.stl,.usdz';
+fileInput.accept = 'model/gltf-binary,model/stl,model/vnd.usdz+zip,.glb,.stl,.usdz';
 fileInput.onchange = async (e) => {
     try {
         const result = await app.loadModel(e.target.files[0]);

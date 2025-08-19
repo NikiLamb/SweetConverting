@@ -101,10 +101,28 @@ export class SceneManager {
         this.controls.maxDistance = 200
         this.controls.target.set(0, 0, 0)
         this.controls.update()
+        
+        // Add event listeners for camera changes to update gizmo immediately
+        this.controls.addEventListener('change', () => {
+            this.updateGizmoOnCameraChange()
+        })
     }
     
     setupEventListeners() {
         window.addEventListener('resize', this.onWindowResize.bind(this), false)
+    }
+    
+    /**
+     * Updates the gizmo when camera changes occur (for immediate response to user interaction)
+     */
+    updateGizmoOnCameraChange() {
+        if (this.currentGizmo && this.currentGizmo.userData.targetModel) {
+            const targetModel = this.currentGizmo.userData.targetModel
+            const modelIndex = this.models.indexOf(targetModel)
+            if (modelIndex >= 0) {
+                this.updateOriginGizmo(modelIndex)
+            }
+        }
     }
     
     addModel(model, fileMetadata = {}) {
@@ -232,28 +250,23 @@ export class SceneManager {
         
         this.animationFrame++
         
-        // Update gizmo size if one is currently displayed (for camera distance changes)
-        if (this.currentGizmo && this.animationFrame % 10 === 0) { // Update every 10 frames for performance
+        // Check if gizmo's target model still exists (cleanup check)
+        if (this.currentGizmo && this.animationFrame % 60 === 0) { // Check every 60 frames (once per second at 60fps)
             try {
-                // Find the model index for the current gizmo
                 const targetModel = this.currentGizmo.userData.targetModel
                 if (targetModel) {
                     const modelIndex = this.models.indexOf(targetModel)
-                    if (modelIndex >= 0) {
-                        this.updateOriginGizmo(modelIndex)
-                    } else {
+                    if (modelIndex < 0) {
                         // Model no longer exists, hide the gizmo
                         this.hideOriginGizmo()
                     }
                 }
             } catch (error) {
-                console.warn('Error updating gizmo:', error)
+                console.warn('Error checking gizmo validity:', error)
                 // Hide gizmo on error to prevent further issues
                 this.hideOriginGizmo()
             }
         }
-        
-        // No need to update any grid - the GridHelper stays fixed at the origin
         
         this.renderer.render(this.scene, this.camera)
     }
@@ -262,10 +275,44 @@ export class SceneManager {
         this.camera.aspect = window.innerWidth / window.innerHeight
         this.camera.updateProjectionMatrix()
         this.renderer.setSize(window.innerWidth, window.innerHeight)
+        
+        // Update gizmo size after window resize since canvas dimensions affect screen-size calculation
+        this.updateGizmoOnCameraChange()
     }
     
     getRendererElement() {
         return this.renderer.domElement
+    }
+    
+    /**
+     * Calculates the gizmo size to maintain constant screen size regardless of camera distance
+     * @param {THREE.Object3D} model - The model to calculate gizmo size for
+     * @returns {number} - The calculated gizmo size in world units
+     */
+    calculateGizmoScreenSize(model) {
+        // Get model's world position (considering its local position and parent transforms)
+        const modelWorldPosition = new THREE.Vector3()
+        model.getWorldPosition(modelWorldPosition)
+        
+        // Calculate distance from camera to model's position
+        const cameraDistance = this.camera.position.distanceTo(modelWorldPosition)
+        
+        // Target screen size for the gizmo in pixels (adjust this value to change apparent size)
+        const targetScreenSizePixels = 80
+        
+        // Calculate the world size needed to achieve the target screen size
+        // This uses the perspective projection formula to convert screen pixels to world units
+        const fov = this.camera.fov * (Math.PI / 180) // Convert FOV to radians
+        const canvasHeight = this.renderer.domElement.height
+        
+        // Formula: worldSize = (screenPixels / canvasHeight) * 2 * distance * tan(fov/2)
+        const worldSize = (targetScreenSizePixels / canvasHeight) * 2 * cameraDistance * Math.tan(fov / 2)
+        
+        // Ensure minimum and maximum sizes for usability
+        const minSize = 0.01
+        const maxSize = 50
+        
+        return Math.max(minSize, Math.min(maxSize, worldSize))
     }
     
     /**
@@ -277,17 +324,8 @@ export class SceneManager {
         const gizmoGroup = new THREE.Group()
         gizmoGroup.name = 'OriginGizmo'
         
-        // Calculate appropriate gizmo size based on model bounding box and camera distance
-        const box = new THREE.Box3().setFromObject(model)
-        const size = box.getSize(new THREE.Vector3())
-        const maxDim = Math.max(size.x, size.y, size.z)
-        let baseGizmoSize = Math.max(0.1, maxDim * 0.1) // 10% of model size, minimum 0.1
-        
-        // Calculate distance-based scaling for consistent visibility
-        const modelCenter = box.getCenter(new THREE.Vector3())
-        const cameraDistance = this.camera.position.distanceTo(modelCenter)
-        const distanceScale = Math.max(0.5, cameraDistance * 0.02) // Scale with distance, minimum 0.5
-        const gizmoSize = baseGizmoSize * distanceScale
+        // Calculate constant screen-size gizmo scaling
+        const gizmoSize = this.calculateGizmoScreenSize(model)
         
         // High render order to ensure gizmo renders on top
         const GIZMO_RENDER_ORDER = 1000
@@ -366,9 +404,8 @@ export class SceneManager {
         gizmoGroup.rotation.copy(model.rotation)
         gizmoGroup.scale.copy(model.scale)
         
-        // Store reference to model for distance-based updates
+        // Store reference to model for screen-size updates
         gizmoGroup.userData.targetModel = model
-        gizmoGroup.userData.baseSize = baseGizmoSize
         
         return gizmoGroup
     }
@@ -421,13 +458,9 @@ export class SceneManager {
             this.currentGizmo.rotation.copy(model.rotation)
             this.currentGizmo.scale.copy(model.scale)
             
-            // Update gizmo size based on current camera distance
-            if (this.currentGizmo.userData.targetModel && this.currentGizmo.userData.baseSize) {
-                const box = new THREE.Box3().setFromObject(model)
-                const modelCenter = box.getCenter(new THREE.Vector3())
-                const cameraDistance = this.camera.position.distanceTo(modelCenter)
-                const distanceScale = Math.max(0.5, cameraDistance * 0.02)
-                const newGizmoSize = this.currentGizmo.userData.baseSize * distanceScale
+            // Update gizmo size to maintain constant screen size
+            if (this.currentGizmo.userData.targetModel) {
+                const newGizmoSize = this.calculateGizmoScreenSize(model)
                 
                 // Update each axis component size
                 this.currentGizmo.children.forEach((child, index) => {

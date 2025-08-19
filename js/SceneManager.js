@@ -232,6 +232,27 @@ export class SceneManager {
         
         this.animationFrame++
         
+        // Update gizmo size if one is currently displayed (for camera distance changes)
+        if (this.currentGizmo && this.animationFrame % 10 === 0) { // Update every 10 frames for performance
+            try {
+                // Find the model index for the current gizmo
+                const targetModel = this.currentGizmo.userData.targetModel
+                if (targetModel) {
+                    const modelIndex = this.models.indexOf(targetModel)
+                    if (modelIndex >= 0) {
+                        this.updateOriginGizmo(modelIndex)
+                    } else {
+                        // Model no longer exists, hide the gizmo
+                        this.hideOriginGizmo()
+                    }
+                }
+            } catch (error) {
+                console.warn('Error updating gizmo:', error)
+                // Hide gizmo on error to prevent further issues
+                this.hideOriginGizmo()
+            }
+        }
+        
         // No need to update any grid - the GridHelper stays fixed at the origin
         
         this.renderer.render(this.scene, this.camera)
@@ -256,56 +277,98 @@ export class SceneManager {
         const gizmoGroup = new THREE.Group()
         gizmoGroup.name = 'OriginGizmo'
         
-        // Calculate appropriate gizmo size based on model bounding box
+        // Calculate appropriate gizmo size based on model bounding box and camera distance
         const box = new THREE.Box3().setFromObject(model)
         const size = box.getSize(new THREE.Vector3())
         const maxDim = Math.max(size.x, size.y, size.z)
-        const gizmoSize = Math.max(0.1, maxDim * 0.1) // 10% of model size, minimum 0.1
+        let baseGizmoSize = Math.max(0.1, maxDim * 0.1) // 10% of model size, minimum 0.1
+        
+        // Calculate distance-based scaling for consistent visibility
+        const modelCenter = box.getCenter(new THREE.Vector3())
+        const cameraDistance = this.camera.position.distanceTo(modelCenter)
+        const distanceScale = Math.max(0.5, cameraDistance * 0.02) // Scale with distance, minimum 0.5
+        const gizmoSize = baseGizmoSize * distanceScale
+        
+        // High render order to ensure gizmo renders on top
+        const GIZMO_RENDER_ORDER = 1000
+        
+        // Create materials with depth testing disabled for always-on-top rendering
+        const xMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xff0000, 
+            depthTest: false,
+            depthWrite: false,
+            transparent: true,
+            opacity: 0.9
+        })
+        const yMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0x00ff00, 
+            depthTest: false,
+            depthWrite: false,
+            transparent: true,
+            opacity: 0.9
+        })
+        const zMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0x0000ff, 
+            depthTest: false,
+            depthWrite: false,
+            transparent: true,
+            opacity: 0.9
+        })
         
         // X axis (red)
         const xGeometry = new THREE.CylinderGeometry(gizmoSize * 0.02, gizmoSize * 0.02, gizmoSize, 8)
-        const xMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 })
         const xAxis = new THREE.Mesh(xGeometry, xMaterial)
         xAxis.rotation.z = -Math.PI / 2
         xAxis.position.x = gizmoSize / 2
+        xAxis.renderOrder = GIZMO_RENDER_ORDER
         
         // X axis arrow
         const xArrowGeometry = new THREE.ConeGeometry(gizmoSize * 0.05, gizmoSize * 0.2, 8)
         const xArrow = new THREE.Mesh(xArrowGeometry, xMaterial)
         xArrow.rotation.z = -Math.PI / 2
         xArrow.position.x = gizmoSize
+        xArrow.renderOrder = GIZMO_RENDER_ORDER
         
         // Y axis (green)
         const yGeometry = new THREE.CylinderGeometry(gizmoSize * 0.02, gizmoSize * 0.02, gizmoSize, 8)
-        const yMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 })
         const yAxis = new THREE.Mesh(yGeometry, yMaterial)
         yAxis.position.y = gizmoSize / 2
+        yAxis.renderOrder = GIZMO_RENDER_ORDER
         
         // Y axis arrow
         const yArrowGeometry = new THREE.ConeGeometry(gizmoSize * 0.05, gizmoSize * 0.2, 8)
         const yArrow = new THREE.Mesh(yArrowGeometry, yMaterial)
         yArrow.position.y = gizmoSize
+        yArrow.renderOrder = GIZMO_RENDER_ORDER
         
         // Z axis (blue)
         const zGeometry = new THREE.CylinderGeometry(gizmoSize * 0.02, gizmoSize * 0.02, gizmoSize, 8)
-        const zMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff })
         const zAxis = new THREE.Mesh(zGeometry, zMaterial)
         zAxis.rotation.x = Math.PI / 2
         zAxis.position.z = gizmoSize / 2
+        zAxis.renderOrder = GIZMO_RENDER_ORDER
         
         // Z axis arrow
         const zArrowGeometry = new THREE.ConeGeometry(gizmoSize * 0.05, gizmoSize * 0.2, 8)
         const zArrow = new THREE.Mesh(zArrowGeometry, zMaterial)
         zArrow.rotation.x = Math.PI / 2
         zArrow.position.z = gizmoSize
+        zArrow.renderOrder = GIZMO_RENDER_ORDER
         
         // Add all components to the gizmo group
         gizmoGroup.add(xAxis, xArrow, yAxis, yArrow, zAxis, zArrow)
+        
+        // Set render order on the group as well
+        gizmoGroup.renderOrder = GIZMO_RENDER_ORDER
         
         // Position the gizmo at the model's position
         gizmoGroup.position.copy(model.position)
         gizmoGroup.rotation.copy(model.rotation)
         gizmoGroup.scale.copy(model.scale)
+        
+        // Store reference to model for distance-based updates
+        gizmoGroup.userData.targetModel = model
+        gizmoGroup.userData.baseSize = baseGizmoSize
         
         return gizmoGroup
     }
@@ -348,7 +411,7 @@ export class SceneManager {
     }
     
     /**
-     * Updates the gizmo position if it exists (useful when model transforms change)
+     * Updates the gizmo position and size if it exists (useful when model transforms change or camera moves)
      * @param {number} modelIndex - Index of the model to update gizmo for
      */
     updateOriginGizmo(modelIndex) {
@@ -357,6 +420,50 @@ export class SceneManager {
             this.currentGizmo.position.copy(model.position)
             this.currentGizmo.rotation.copy(model.rotation)
             this.currentGizmo.scale.copy(model.scale)
+            
+            // Update gizmo size based on current camera distance
+            if (this.currentGizmo.userData.targetModel && this.currentGizmo.userData.baseSize) {
+                const box = new THREE.Box3().setFromObject(model)
+                const modelCenter = box.getCenter(new THREE.Vector3())
+                const cameraDistance = this.camera.position.distanceTo(modelCenter)
+                const distanceScale = Math.max(0.5, cameraDistance * 0.02)
+                const newGizmoSize = this.currentGizmo.userData.baseSize * distanceScale
+                
+                // Update each axis component size
+                this.currentGizmo.children.forEach((child, index) => {
+                    if (child.geometry) {
+                        const isArrow = index % 2 === 1 // Every second child is an arrow
+                        
+                        if (isArrow) {
+                            // Update arrow geometry
+                            child.geometry.dispose()
+                            child.geometry = new THREE.ConeGeometry(newGizmoSize * 0.05, newGizmoSize * 0.2, 8)
+                            
+                            // Update arrow position
+                            if (index === 1) { // X arrow
+                                child.position.x = newGizmoSize
+                            } else if (index === 3) { // Y arrow
+                                child.position.y = newGizmoSize
+                            } else if (index === 5) { // Z arrow
+                                child.position.z = newGizmoSize
+                            }
+                        } else {
+                            // Update axis cylinder geometry
+                            child.geometry.dispose()
+                            child.geometry = new THREE.CylinderGeometry(newGizmoSize * 0.02, newGizmoSize * 0.02, newGizmoSize, 8)
+                            
+                            // Update axis position
+                            if (index === 0) { // X axis
+                                child.position.x = newGizmoSize / 2
+                            } else if (index === 2) { // Y axis
+                                child.position.y = newGizmoSize / 2
+                            } else if (index === 4) { // Z axis
+                                child.position.z = newGizmoSize / 2
+                            }
+                        }
+                    }
+                })
+            }
         }
     }
 }

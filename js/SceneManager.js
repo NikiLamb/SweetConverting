@@ -298,7 +298,7 @@ export class SceneManager {
         const cameraDistance = this.camera.position.distanceTo(modelWorldPosition)
         
         // Target screen size for the gizmo in pixels (adjust this value to change apparent size)
-        const targetScreenSizePixels = 80
+        const targetScreenSizePixels = 27
         
         // Calculate the world size needed to achieve the target screen size
         // This uses the perspective projection formula to convert screen pixels to world units

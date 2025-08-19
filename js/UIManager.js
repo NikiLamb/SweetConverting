@@ -114,14 +114,6 @@ export class UIManager {
     }
     
     setupSelectionEventListeners() {
-        // Click outside to unselect all models
-        document.addEventListener('click', (e) => {
-            const modelTreeContainer = this.elements.modelTreeContainer
-            if (modelTreeContainer && !modelTreeContainer.contains(e.target)) {
-                this.unselectAllModels()
-            }
-        })
-        
         // ESC key to unselect all models
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {

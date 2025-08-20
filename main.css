@@ -7,6 +7,11 @@
     top: 10px;
     left: 10px;
     z-index: 100;
+    width: fit-content;
+    max-width: 320px;
+    background-color: #D9D9D926;
+    padding: 8px;
+    border-radius: 6px;
 }
 
 .custom-button {

@@ -10,6 +10,11 @@ export class SceneManager {
         this.animationFrame = 0
         this.currentGizmo = null // Store the current origin gizmo
         
+        // Raycasting for 3D object selection
+        this.raycaster = new THREE.Raycaster()
+        this.mouse = new THREE.Vector2()
+        this.onModelClickCallback = null // Callback for when a model is clicked
+        
         this.initScene()
         this.initCamera()
         this.initRenderer()
@@ -110,6 +115,77 @@ export class SceneManager {
     
     setupEventListeners() {
         window.addEventListener('resize', this.onWindowResize.bind(this), false)
+        
+        // Add mouse click event for 3D object selection
+        this.canvas.addEventListener('click', this.onCanvasClick.bind(this), false)
+    }
+    
+    /**
+     * Handles canvas click events for 3D object selection
+     * @param {MouseEvent} event - The mouse click event
+     */
+    onCanvasClick(event) {
+        // Prevent default behavior
+        event.preventDefault()
+        
+        // Calculate mouse position in normalized device coordinates (-1 to +1) for both components
+        const rect = this.canvas.getBoundingClientRect()
+        this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+        this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+        
+        // Update the raycaster with the camera and mouse position
+        this.raycaster.setFromCamera(this.mouse, this.camera)
+        
+        // Calculate objects intersecting the picking ray
+        const intersects = this.raycaster.intersectObjects(this.models, true)
+        
+        if (intersects.length > 0) {
+            // Find which model was clicked by traversing up the object hierarchy
+            const clickedObject = intersects[0].object
+            const modelIndex = this.findModelIndex(clickedObject)
+            
+            if (modelIndex !== -1) {
+                // Call the callback if it's set (UIManager will handle the selection logic)
+                if (this.onModelClickCallback) {
+                    this.onModelClickCallback(modelIndex, {
+                        ctrlKey: event.ctrlKey,
+                        metaKey: event.metaKey,
+                        shiftKey: event.shiftKey
+                    })
+                }
+                console.log(`3D Model ${modelIndex} clicked`)
+            }
+        }
+    }
+    
+    /**
+     * Finds the model index for a clicked object by traversing up the hierarchy
+     * @param {THREE.Object3D} clickedObject - The clicked Three.js object
+     * @returns {number} - The model index, or -1 if not found
+     */
+    findModelIndex(clickedObject) {
+        // Traverse up the object hierarchy to find the root model
+        let current = clickedObject
+        while (current && current.parent) {
+            // Check if this object is one of our models
+            const index = this.models.indexOf(current)
+            if (index !== -1) {
+                return index
+            }
+            current = current.parent
+        }
+        
+        // Check if the clicked object itself is a model
+        const directIndex = this.models.indexOf(clickedObject)
+        return directIndex !== -1 ? directIndex : -1
+    }
+    
+    /**
+     * Sets the callback function to be called when a model is clicked
+     * @param {Function} callback - Function to call with (modelIndex, eventInfo)
+     */
+    setModelClickCallback(callback) {
+        this.onModelClickCallback = callback
     }
     
     /**
@@ -128,7 +204,101 @@ export class SceneManager {
     addModel(model, fileMetadata = {}) {
         this.models.push(model)
         this.modelMetadata.push(fileMetadata)
+        
+        // Store original materials for selection highlighting
+        this.storeOriginalMaterials(model)
+        
         this.scene.add(model)
+    }
+    
+    /**
+     * Stores the original materials of a model for later restoration
+     * @param {THREE.Object3D} model - The model to store materials for
+     */
+    storeOriginalMaterials(model) {
+        model.traverse((child) => {
+            if (child.isMesh && child.material) {
+                // Store original material(s)
+                if (Array.isArray(child.material)) {
+                    child.userData.originalMaterials = child.material.slice()
+                } else {
+                    child.userData.originalMaterial = child.material
+                }
+            }
+        })
+    }
+    
+    /**
+     * Highlights selected models by changing their material properties
+     * @param {Set<number>} selectedIndices - Set of selected model indices
+     */
+    highlightSelectedModels(selectedIndices) {
+        this.models.forEach((model, index) => {
+            if (selectedIndices.has(index)) {
+                this.highlightModel(model)
+            } else {
+                this.unhighlightModel(model)
+            }
+        })
+    }
+    
+    /**
+     * Highlights a single model
+     * @param {THREE.Object3D} model - The model to highlight
+     */
+    highlightModel(model) {
+        model.traverse((child) => {
+            if (child.isMesh && child.material) {
+                if (Array.isArray(child.material)) {
+                    // Handle array of materials
+                    child.material = child.material.map(mat => this.createHighlightMaterial(mat))
+                } else {
+                    // Handle single material
+                    child.material = this.createHighlightMaterial(child.material)
+                }
+            }
+        })
+    }
+    
+    /**
+     * Removes highlight from a single model
+     * @param {THREE.Object3D} model - The model to unhighlight
+     */
+    unhighlightModel(model) {
+        model.traverse((child) => {
+            if (child.isMesh && child.material) {
+                // Restore original material(s)
+                if (child.userData.originalMaterials) {
+                    child.material = child.userData.originalMaterials
+                } else if (child.userData.originalMaterial) {
+                    child.material = child.userData.originalMaterial
+                }
+            }
+        })
+    }
+    
+    /**
+     * Creates a highlighted version of a material
+     * @param {THREE.Material} originalMaterial - The original material
+     * @returns {THREE.Material} - The highlighted material
+     */
+    createHighlightMaterial(originalMaterial) {
+        // Clone the original material to avoid modifying it
+        const highlightMaterial = originalMaterial.clone()
+        
+        // Add highlight effect
+        if (highlightMaterial.emissive) {
+            // Add blue emissive glow
+            highlightMaterial.emissive.setHex(0x0066cc)
+            highlightMaterial.emissiveIntensity = 0.3
+        } else {
+            // For materials without emissive, adjust color
+            if (highlightMaterial.color) {
+                highlightMaterial.color.lerp(new THREE.Color(0x4499ff), 0.3)
+            }
+        }
+        
+        return highlightMaterial
     }
     
     clearModels() {

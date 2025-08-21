@@ -28,6 +28,9 @@ export class UIManager {
         } else {
             this.setupUI()
         }
+        
+        // Set up 3D scene selection callback
+        this.sceneManager.setModelClickCallback(this.handle3DModelClick.bind(this))
     }
     
     setupUI() {
@@ -595,6 +598,26 @@ export class UIManager {
         }
     }
     
+    /**
+     * Handles clicks on 3D models in the scene
+     * @param {number} modelIndex - Index of the clicked model
+     * @param {Object} eventInfo - Information about the click event (ctrl, shift keys)
+     */
+    handle3DModelClick(modelIndex, eventInfo) {
+        if (eventInfo.shiftKey) {
+            // Range selection with Shift+click
+            this.handleRangeSelection(modelIndex)
+        } else if (eventInfo.ctrlKey || eventInfo.metaKey) {
+            // Multi-select with Ctrl/Cmd+click
+            this.handleModelSelection(modelIndex, true)
+            this.lastSelectedIndex = modelIndex
+        } else {
+            // Single selection
+            this.handleModelSelection(modelIndex, false)
+            this.lastSelectedIndex = modelIndex
+        }
+    }
+
     handleModelSelection(index, isMultiSelect) {
         if (isMultiSelect) {
             // Multi-select mode: add/remove from selection
@@ -619,9 +642,8 @@ export class UIManager {
             }
         }
         
-        // Update gizmo display based on selection
-        this.updateGizmoDisplay()
-        this.updateModelTree()
+        // Update visual feedback and UI
+        this.updateSelectionDisplay()
     }
 
     handleRangeSelection(endIndex) {
@@ -645,9 +667,22 @@ export class UIManager {
             console.log(`Range selected from ${startIndex} to ${endIndexActual}. Selected models:`, Array.from(this.selectedModels))
         }
         
+        // Update visual feedback and UI
+        this.updateSelectionDisplay()
+    }
+    
+    /**
+     * Updates all selection-related visual feedback and UI elements
+     */
+    updateSelectionDisplay() {
         // Update gizmo display based on selection
         this.updateGizmoDisplay()
+        
+        // Update model tree highlighting
         this.updateModelTree()
+        
+        // Update 3D scene highlighting
+        this.sceneManager.highlightSelectedModels(this.selectedModels)
     }
     
     toggleModelSelection(index) {
@@ -660,8 +695,7 @@ export class UIManager {
             console.log('Unselecting all models. Previously selected:', Array.from(this.selectedModels))
             this.selectedModels.clear()
             this.lastSelectedIndex = null
-            this.updateGizmoDisplay()
-            this.updateModelTree()
+            this.updateSelectionDisplay()
         }
     }
     

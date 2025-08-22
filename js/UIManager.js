@@ -547,12 +547,52 @@ export class UIManager {
         
         expandedDiv.appendChild(rotationDiv)
         
+        // Get model scaling
+        const scale = model.scale
+        const scaleX = scale.x.toFixed(2)
+        const scaleY = scale.y.toFixed(2)
+        const scaleZ = scale.z.toFixed(2)
+        
+        // Create scaling display
+        const scalingDiv = document.createElement('div')
+        scalingDiv.className = 'model-scaling'
+        
+        // X scaling
+        const xScaling = document.createElement('div')
+        xScaling.className = 'coordinate-item'
+        xScaling.innerHTML = `
+            <div class="coordinate-symbol x-coord">X</div>
+            <span class="coordinate-value" data-scaling="x">${scaleX}</span>
+        `
+        
+        // Y scaling
+        const yScaling = document.createElement('div')
+        yScaling.className = 'coordinate-item'
+        yScaling.innerHTML = `
+            <div class="coordinate-symbol y-coord">Y</div>
+            <span class="coordinate-value" data-scaling="y">${scaleY}</span>
+        `
+        
+        // Z scaling
+        const zScaling = document.createElement('div')
+        zScaling.className = 'coordinate-item'
+        zScaling.innerHTML = `
+            <div class="coordinate-symbol z-coord">Z</div>
+            <span class="coordinate-value" data-scaling="z">${scaleZ}</span>
+        `
+        
+        scalingDiv.appendChild(xScaling)
+        scalingDiv.appendChild(yScaling)
+        scalingDiv.appendChild(zScaling)
+        
+        expandedDiv.appendChild(scalingDiv)
+        
         return expandedDiv
     }
     
     /**
-     * Updates coordinate and rotation display for expanded models
-     * Should be called when model positions or rotations change
+     * Updates coordinate, rotation, and scaling display for expanded models
+     * Should be called when model positions, rotations, or scaling change
      */
     updateCoordinateDisplay() {
         const models = this.sceneManager.getModels()
@@ -582,6 +622,16 @@ export class UIManager {
                 if (xRotValue) xRotValue.textContent = (rotation.x * 180 / Math.PI).toFixed(2) + '°'
                 if (yRotValue) yRotValue.textContent = (rotation.y * 180 / Math.PI).toFixed(2) + '°'
                 if (zRotValue) zRotValue.textContent = (rotation.z * 180 / Math.PI).toFixed(2) + '°'
+                
+                // Update scaling values
+                const scale = model.scale
+                const xScaleValue = content.querySelector('[data-scaling="x"]')
+                const yScaleValue = content.querySelector('[data-scaling="y"]')
+                const zScaleValue = content.querySelector('[data-scaling="z"]')
+                
+                if (xScaleValue) xScaleValue.textContent = scale.x.toFixed(2)
+                if (yScaleValue) yScaleValue.textContent = scale.y.toFixed(2)
+                if (zScaleValue) zScaleValue.textContent = scale.z.toFixed(2)
             }
         })
     }

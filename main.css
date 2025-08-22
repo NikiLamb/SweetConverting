@@ -211,6 +211,13 @@
     display: flex;
     gap: 12px;
     align-items: center;
+    margin-bottom: 8px;
+}
+
+.model-scaling {
+    display: flex;
+    gap: 12px;
+    align-items: center;
 }
 
 .coordinate-item {

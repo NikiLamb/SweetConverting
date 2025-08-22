@@ -56,24 +56,20 @@
                     <div id="model-tree-title">Scene composition</div>
                     <div id="model-tree-content"></div>
                 </div>
-                <!-- New conversion section -->
-                <div id="conversion-section" style="margin-top: 10px; display: none;">
-                    <div style="margin-bottom: 5px;">
-                        <label for="format-selector" style="color: white; font-size: 12px;">Export Format:</label>
-                        <select id="format-selector" class="custom-button" style="margin-left: 5px; padding: 5px;">
-                            <option value="">Select format...</option>
-                        </select>
-                    </div>
-                    <div>
-                        <button class="custom-button" id="convert-button" disabled>Create</button>
-                    </div>
-                </div>
                 </div>
                 <!-- Toolbar section -->
                 <div id="toolbar-container">
                     <div class="toolbar-section">
                         <div class="toolbar-buttons">
                             <button class="toolbar-button" id="translate-button">Translate</button>
+                            <!-- Export controls beside translate button -->
+                            <div id="conversion-section">
+                                <label for="format-selector" style="color: white; font-size: 12px;">Export Format:</label>
+                                <select id="format-selector" class="custom-button" style="margin-left: 5px; padding: 5px;">
+                                    <option value="">Select format...</option>
+                                </select>
+                                <button class="custom-button" id="convert-button" disabled style="margin-left: 5px;">Create</button>
+                            </div>
                         </div>
                     </div>
                 </div>

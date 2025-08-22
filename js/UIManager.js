@@ -41,6 +41,7 @@ export class UIManager {
         this.findUIElements()
         this.setupEventListeners()
         this.setupViewerContainer()
+        this.initializeConversionSection()
     }
     
     findUIElements() {
@@ -160,6 +161,37 @@ export class UIManager {
                 this.elements.viewerContainer.appendChild(rendererElement)
             }
         }
+    }
+    
+    initializeConversionSection() {
+        // Make conversion section always visible and initialize with default formats
+        if (this.elements.conversionSection) {
+            this.elements.conversionSection.style.display = 'flex'
+            
+            // Initialize with all possible export formats
+            this.populateFormatSelector()
+        }
+    }
+    
+    populateFormatSelector() {
+        if (!this.elements.formatSelector) return
+        
+        // Clear existing options
+        this.elements.formatSelector.innerHTML = '<option value="">Select format...</option>'
+        
+        // Add all supported formats regardless of loaded model type
+        const allFormats = [
+            { value: 'glb', label: 'GLB (Binary glTF)' },
+            { value: 'gltf', label: 'GLTF (Text glTF)' },
+            { value: 'obj', label: 'OBJ (Wavefront)' }
+        ]
+        
+        allFormats.forEach(format => {
+            const option = document.createElement('option')
+            option.value = format.value
+            option.textContent = format.label
+            this.elements.formatSelector.appendChild(option)
+        })
     }
     
     async handleFileLoad(event) {
@@ -291,8 +323,7 @@ export class UIManager {
         // Hide gizmo
         this.sceneManager.hideOriginGizmo()
         
-        // Hide conversion section
-        this.elements.conversionSection.style.display = 'none'
+        // Export controls remain always visible
         // Update the model tree (will hide it since no models)
         this.updateModelTree()
         
@@ -365,14 +396,13 @@ export class UIManager {
     
     showConversionSection() {
         if (this.elements.conversionSection) {
-            this.elements.conversionSection.style.display = 'block'
+            this.elements.conversionSection.style.display = 'flex'
         }
     }
     
     hideConversionSection() {
-        if (this.elements.conversionSection) {
-            this.elements.conversionSection.style.display = 'none'
-        }
+        // Export controls should always be visible - do nothing
+        // Keeping this method for backward compatibility
     }
     
     updateModelTreeTitle(modelCount) {

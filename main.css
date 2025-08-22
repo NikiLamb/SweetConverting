@@ -48,6 +48,14 @@
     min-width: 120px;
 }
 
+/* Export controls within toolbar buttons */
+#conversion-section {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: 16px;
+}
+
 #conversion-status {
     font-style: italic;
 }

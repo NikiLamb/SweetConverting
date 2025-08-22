@@ -479,6 +479,11 @@ export class UIManager {
         const rotY = (rotation.y * 180 / Math.PI).toFixed(2)
         const rotZ = (rotation.z * 180 / Math.PI).toFixed(2)
         
+        // Create coordinates label
+        const coordsLabel = document.createElement('div')
+        coordsLabel.className = 'model-section-label'
+        coordsLabel.textContent = 'Coordinates'
+        
         // Create coordinates display
         const coordsDiv = document.createElement('div')
         coordsDiv.className = 'model-coordinates'
@@ -511,7 +516,13 @@ export class UIManager {
         coordsDiv.appendChild(yCoord)
         coordsDiv.appendChild(zCoord)
         
+        expandedDiv.appendChild(coordsLabel)
         expandedDiv.appendChild(coordsDiv)
+        
+        // Create rotation label
+        const rotationLabel = document.createElement('div')
+        rotationLabel.className = 'model-section-label'
+        rotationLabel.textContent = 'Rotation'
         
         // Create rotation display
         const rotationDiv = document.createElement('div')
@@ -545,6 +556,7 @@ export class UIManager {
         rotationDiv.appendChild(yRotation)
         rotationDiv.appendChild(zRotation)
         
+        expandedDiv.appendChild(rotationLabel)
         expandedDiv.appendChild(rotationDiv)
         
         // Get model scaling
@@ -552,6 +564,11 @@ export class UIManager {
         const scaleX = scale.x.toFixed(2)
         const scaleY = scale.y.toFixed(2)
         const scaleZ = scale.z.toFixed(2)
+        
+        // Create scaling label
+        const scalingLabel = document.createElement('div')
+        scalingLabel.className = 'model-section-label'
+        scalingLabel.textContent = 'Scale'
         
         // Create scaling display
         const scalingDiv = document.createElement('div')
@@ -585,6 +602,7 @@ export class UIManager {
         scalingDiv.appendChild(yScaling)
         scalingDiv.appendChild(zScaling)
         
+        expandedDiv.appendChild(scalingLabel)
         expandedDiv.appendChild(scalingDiv)
         
         return expandedDiv

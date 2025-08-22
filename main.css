@@ -66,7 +66,7 @@
 #model-tree-container {
     width: 300px;
     min-height: 35px;
-    max-height: 530px;
+    max-height: calc(100vh - 140px); /* Dynamic height: full viewport minus space for top elements */
     background-color: #333333;
     border: 1px solid #555555;
     border-radius: 5px;
@@ -200,6 +200,18 @@
     padding-bottom: 4px;
     background-color: #2a2a2a;
     border-radius: 0 0 3px 3px;
+}
+
+.model-section-label {
+    font-size: 12px;
+    font-weight: bold;
+    color: #cccccc;
+    margin-bottom: 4px;
+    margin-top: 8px;
+}
+
+.model-section-label:first-child {
+    margin-top: 0;
 }
 
 .model-coordinates {

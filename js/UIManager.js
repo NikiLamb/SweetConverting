@@ -1,8 +1,12 @@
+import { TransformCommand } from './commands/TransformCommand.js'
+import { RemoveModelCommand } from './commands/RemoveModelCommand.js'
+
 export class UIManager {
-    constructor(sceneManager, modelLoaders, modelConverter) {
+    constructor(sceneManager, modelLoaders, modelConverter, historyManager) {
         this.sceneManager = sceneManager
         this.modelLoaders = modelLoaders
         this.modelConverter = modelConverter
+        this.historyManager = historyManager
         
         // Current state
         this.currentLoadedFileType = null
@@ -797,6 +801,44 @@ export class UIManager {
     }
     
     handleRemoveModel(index) {
+        // Get model and metadata before removing
+        const models = this.sceneManager.getModels()
+        const metadata = this.sceneManager.getModelMetadata()
+        
+        if (index < 0 || index >= models.length) {
+            console.error('Invalid model index for removal:', index)
+            return
+        }
+        
+        const modelToRemove = models[index]
+        const modelMetadata = metadata[index]
+        
+        // Create remove command for undo tracking if history manager is available
+        if (this.historyManager) {
+            try {
+                const command = new RemoveModelCommand(this.sceneManager, this, index, modelToRemove, modelMetadata)
+                
+                // Execute the command through history manager
+                this.historyManager.execute(command)
+                
+                console.log(`Created remove command for model: ${modelMetadata.filename}`)
+            } catch (error) {
+                console.error('Error creating remove command:', error)
+                // Fall back to direct removal if command creation fails
+                this.performModelRemoval(index)
+            }
+        } else {
+            // No history manager, perform direct removal
+            this.performModelRemoval(index)
+        }
+    }
+    
+    /**
+     * Performs the actual model removal and UI updates
+     * Used both by direct removal and by remove commands
+     * @param {number} index - Index of model to remove
+     */
+    performModelRemoval(index) {
         // Remove the model from selection if it was selected
         this.selectedModels.delete(index)
         
@@ -1254,13 +1296,35 @@ export class UIManager {
     
     /**
      * Applies transformation changes from input to the 3D model
+     * Creates an undo command for the transformation
      * @param {number} modelIndex - Index of the model
      * @param {string} type - Type of transformation (coord, rotation, scaling)
      * @param {string} axis - The axis (x, y, z)
      * @param {number} value - The new value
      */
     applyTransformFromInput(modelIndex, type, axis, value) {
-        // Get all current values for this transform type
+        if (!this.historyManager) {
+            console.warn('No history manager available for undo tracking')
+            return
+        }
+        
+        // Map UI types to command types
+        const transformTypeMap = {
+            'coord': 'position',
+            'rotation': 'rotation',
+            'scaling': 'scale'
+        }
+        
+        const transformType = transformTypeMap[type]
+        if (!transformType) {
+            console.error('Invalid transform type:', type)
+            return
+        }
+        
+        // Capture current values before change
+        const oldValues = TransformCommand.captureCurrentValues(this.sceneManager, [modelIndex], transformType)
+        
+        // Get all current values for this transform type (including the new value)
         const inputs = document.querySelectorAll(`[data-model-index="${modelIndex}"][data-type="${type}"]`)
         const values = { x: 0, y: 0, z: 0 }
         
@@ -1282,7 +1346,39 @@ export class UIManager {
                 break
         }
         
-        if (!success) {
+        if (success) {
+            // Capture new values after change
+            const newValues = TransformCommand.captureCurrentValues(this.sceneManager, [modelIndex], transformType)
+            
+            // Create transform command
+            try {
+                const command = new TransformCommand(
+                    this.sceneManager,
+                    [modelIndex],
+                    transformType,
+                    oldValues,
+                    newValues,
+                    `Manual ${transformType} change`
+                )
+                
+                // Only add to history if there's a significant change
+                if (command.hasSignificantChange()) {
+                    // Don't execute the command since the transform already happened
+                    // Just add it to the undo stack directly
+                    this.historyManager.undoStack.push(command)
+                    this.historyManager.redoStack = [] // Clear redo stack
+                    this.historyManager.trimHistory()
+                    this.historyManager.notifyHistoryChanged()
+                    
+                    console.log(`Created manual transform command: ${command.name}`)
+                } else {
+                    console.log('Transform change too small, not adding to history')
+                }
+                
+            } catch (error) {
+                console.error('Error creating transform command from manual input:', error)
+            }
+        } else {
             console.error('Failed to apply transformation to model')
         }
     }

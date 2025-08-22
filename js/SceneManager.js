@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { TransformControls } from 'three/addons/controls/TransformControls.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { TransformCommand } from './commands/TransformCommand.js'
 
 export class SceneManager {
     constructor(canvas) {
@@ -19,6 +20,13 @@ export class SceneManager {
         this.multiModelGroup = null // Group object for multi-model translation
         this.isTransformDragging = false // Track if transform controls are being dragged
         this.transformJustFinished = false // Track if transform just finished to prevent selection
+        
+        // History manager for undo/redo functionality
+        this.historyManager = null
+        
+        // Transform state tracking for undo/redo
+        this.transformStartValues = null // Store values at start of transform
+        this.isTrackingTransform = false // Track if we're in the middle of a transform operation
         
         // Raycasting for 3D object selection
         this.raycaster = new THREE.Raycaster()
@@ -148,6 +156,15 @@ export class SceneManager {
             
             // Track dragging state
             this.isTransformDragging = event.value
+            
+            // Handle transform tracking for undo/redo
+            if (event.value) {
+                // Transform started - capture initial values
+                this.startTransformTracking()
+            } else {
+                // Transform ended - create undo command
+                this.endTransformTracking()
+            }
             
             // When dragging ends, set a flag to prevent immediate selection
             if (!event.value && (this.translationMode || this.rotationMode || this.scalingMode)) {
@@ -1285,5 +1302,99 @@ export class SceneManager {
             }
         }
         return false
+    }
+    
+    /**
+     * Starts tracking transform values for undo/redo
+     * Called when transform controls start being dragged
+     */
+    startTransformTracking() {
+        if (!this.historyManager || this.selectedModelIndices.length === 0) {
+            return
+        }
+        
+        // Determine transform type based on current mode
+        let transformType = null
+        if (this.translationMode) {
+            transformType = 'position'
+        } else if (this.rotationMode) {
+            transformType = 'rotation'
+        } else if (this.scalingMode) {
+            transformType = 'scale'
+        }
+        
+        if (!transformType) {
+            return
+        }
+        
+        // Capture current values for all selected models
+        this.transformStartValues = {
+            modelIndices: [...this.selectedModelIndices],
+            transformType: transformType,
+            values: TransformCommand.captureCurrentValues(this, this.selectedModelIndices, transformType)
+        }
+        
+        this.isTrackingTransform = true
+        
+        console.log(`Started tracking ${transformType} transform for models [${this.selectedModelIndices.join(', ')}]`)
+    }
+    
+    /**
+     * Ends tracking transform values and creates undo command
+     * Called when transform controls stop being dragged
+     */
+    endTransformTracking() {
+        if (!this.historyManager || !this.isTrackingTransform || !this.transformStartValues) {
+            return
+        }
+        
+        try {
+            // Capture final values for the same models and transform type
+            const finalValues = TransformCommand.captureCurrentValues(
+                this, 
+                this.transformStartValues.modelIndices, 
+                this.transformStartValues.transformType
+            )
+            
+            // Create transform command
+            const command = new TransformCommand(
+                this,
+                this.transformStartValues.modelIndices,
+                this.transformStartValues.transformType,
+                this.transformStartValues.values,
+                finalValues,
+                `Transform ${this.transformStartValues.transformType} via ${this.transformStartValues.transformType} tool`
+            )
+            
+            // Only add to history if there's a significant change
+            if (command.hasSignificantChange()) {
+                // Don't execute the command since the transform already happened
+                // Just add it to the undo stack directly
+                this.historyManager.undoStack.push(command)
+                this.historyManager.redoStack = [] // Clear redo stack
+                this.historyManager.trimHistory()
+                this.historyManager.notifyHistoryChanged()
+                
+                console.log(`Created transform command: ${command.name}`)
+            } else {
+                console.log('Transform change too small, not adding to history')
+            }
+            
+        } catch (error) {
+            console.error('Error creating transform command:', error)
+        } finally {
+            // Reset tracking state
+            this.transformStartValues = null
+            this.isTrackingTransform = false
+        }
+    }
+    
+    /**
+     * Sets the history manager for undo/redo functionality
+     * @param {HistoryManager} historyManager - The history manager instance
+     */
+    setHistoryManager(historyManager) {
+        this.historyManager = historyManager
+        console.log('HistoryManager set in SceneManager')
     }
 }

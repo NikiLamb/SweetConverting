@@ -2,6 +2,7 @@ import { SceneManager } from './SceneManager.js'
 import { ModelLoaders } from './ModelLoaders.js'
 import { ModelConverter } from './ModelConverter.js'
 import { UIManager } from './UIManager.js'
+import { HistoryManager } from './HistoryManager.js'
 
 export class App {
     constructor() {
@@ -10,6 +11,7 @@ export class App {
         this.modelLoaders = null
         this.modelConverter = null
         this.uiManager = null
+        this.historyManager = null
         
         this.init()
     }
@@ -40,7 +42,10 @@ export class App {
     }
     
     initializeModules() {
-        // Initialize Scene Manager first (core Three.js functionality)
+        // Initialize History Manager first (independent)
+        this.historyManager = new HistoryManager()
+        
+        // Initialize Scene Manager (core Three.js functionality)
         this.sceneManager = new SceneManager(this.canvas)
         
         // Initialize Model Loaders (depends on Scene Manager)
@@ -53,8 +58,26 @@ export class App {
         this.uiManager = new UIManager(
             this.sceneManager,
             this.modelLoaders,
-            this.modelConverter
+            this.modelConverter,
+            this.historyManager
         )
+        
+        // Set up cross-module dependencies
+        this.setupModuleDependencies()
+    }
+    
+    /**
+     * Sets up dependencies between modules
+     */
+    setupModuleDependencies() {
+        // Set up history manager references in other modules
+        this.sceneManager.setHistoryManager(this.historyManager)
+        this.modelLoaders.setHistoryManager(this.historyManager)
+        
+        // Set up UI manager reference in model loaders for UI updates
+        this.modelLoaders.setUIManager(this.uiManager)
+        
+        console.log('Module dependencies configured')
     }
     
     handleInitializationError(error) {
@@ -102,6 +125,10 @@ export class App {
     
     getUIManager() {
         return this.uiManager
+    }
+    
+    getHistoryManager() {
+        return this.historyManager
     }
     
     // Method to load a model programmatically

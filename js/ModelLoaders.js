@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { STLLoader } from 'three/addons/loaders/STLLoader.js'
 import { USDZLoader } from 'three/addons/loaders/USDZLoader.js'
+import { LoadModelCommand } from './commands/LoadModelCommand.js'
 
 export class ModelLoaders {
     constructor(sceneManager) {
@@ -10,6 +11,8 @@ export class ModelLoaders {
         this.stlLoader = new STLLoader()
         this.usdzLoader = new USDZLoader()
         this.loadedModelsCount = 0  // Track number of models loaded in current session
+        this.historyManager = null  // Reference to history manager for undo/redo
+        this.uiManager = null       // Reference to UI manager for UI updates
     }
     
     // Reset the loaded models counter (call when clearing models)
@@ -65,7 +68,7 @@ export class ModelLoaders {
                         fileType: 'GLB',
                         originalFile: file
                     }
-                    this.sceneManager.addModel(glbModel, metadata)
+                    this.addModelWithUndo(glbModel, metadata)
                     this.sceneManager.recenterCameraOnAllModels()
                     
                     console.log('GLB model loaded successfully')
@@ -119,7 +122,7 @@ export class ModelLoaders {
                     fileType: 'STL',
                     originalFile: file
                 }
-                this.sceneManager.addModel(stlModel, metadata)
+                this.addModelWithUndo(stlModel, metadata)
                 this.sceneManager.recenterCameraOnAllModels()
                 
                 console.log('STL model loaded successfully')
@@ -152,7 +155,7 @@ export class ModelLoaders {
                     fileType: 'USDZ',
                     originalFile: file
                 }
-                this.sceneManager.addModel(usdzModel, metadata)
+                this.addModelWithUndo(usdzModel, metadata)
                 this.sceneManager.recenterCameraOnAllModels()
                 
                 console.log('USDZ model loaded successfully')
@@ -169,5 +172,58 @@ export class ModelLoaders {
     
     getSupportedFormats() {
         return ['.glb', '.stl', '.usdz']
+    }
+    
+    /**
+     * Adds a model to the scene with undo tracking
+     * @param {THREE.Object3D} model - The model to add
+     * @param {object} metadata - Model metadata
+     * @returns {number} - Index of the added model
+     */
+    addModelWithUndo(model, metadata) {
+        // Add model to scene first
+        this.sceneManager.addModel(model, metadata)
+        
+        // Find the index of the added model
+        const models = this.sceneManager.getModels()
+        const modelIndex = models.indexOf(model)
+        
+        // Create load command for undo tracking if history manager is available
+        if (this.historyManager && modelIndex !== -1) {
+            try {
+                const command = new LoadModelCommand(this.sceneManager, this.uiManager, model, metadata, modelIndex)
+                
+                // Don't execute the command since the model is already added
+                // Just add it to the undo stack directly
+                this.historyManager.undoStack.push(command)
+                this.historyManager.redoStack = [] // Clear redo stack
+                this.historyManager.trimHistory()
+                this.historyManager.notifyHistoryChanged()
+                
+                console.log(`Created load command for model: ${metadata.filename}`)
+            } catch (error) {
+                console.error('Error creating load command:', error)
+            }
+        }
+        
+        return modelIndex
+    }
+    
+    /**
+     * Sets the history manager for undo/redo functionality
+     * @param {HistoryManager} historyManager - The history manager instance
+     */
+    setHistoryManager(historyManager) {
+        this.historyManager = historyManager
+        console.log('HistoryManager set in ModelLoaders')
+    }
+    
+    /**
+     * Sets the UI manager for UI updates
+     * @param {UIManager} uiManager - The UI manager instance
+     */
+    setUIManager(uiManager) {
+        this.uiManager = uiManager
+        console.log('UIManager set in ModelLoaders')
     }
 }

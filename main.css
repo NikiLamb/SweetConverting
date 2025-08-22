@@ -10,6 +10,7 @@
     padding: 8px;
     border-radius: 6px;
     flex-shrink: 0;
+    pointer-events: auto; /* Restore pointer events for button interactions */
 }
 
 /* Flexbox container for top navigation */
@@ -22,6 +23,7 @@
     display: flex;
     gap: 10px;
     align-items: flex-start;
+    pointer-events: none; /* Allow 3D scene interaction through this container */
 }
 
 .custom-button {
@@ -265,6 +267,7 @@
     background-color: #D9D9D926;
     padding: 8px;
     border-radius: 6px;
+    pointer-events: auto; /* Restore pointer events for toolbar interactions */
 }
 
 .toolbar-section {

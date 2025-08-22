@@ -473,6 +473,12 @@ export class UIManager {
         const y = position.y.toFixed(2)
         const z = position.z.toFixed(2)
         
+        // Get model rotation (convert from radians to degrees)
+        const rotation = model.rotation
+        const rotX = (rotation.x * 180 / Math.PI).toFixed(2)
+        const rotY = (rotation.y * 180 / Math.PI).toFixed(2)
+        const rotZ = (rotation.z * 180 / Math.PI).toFixed(2)
+        
         // Create coordinates display
         const coordsDiv = document.createElement('div')
         coordsDiv.className = 'model-coordinates'
@@ -507,12 +513,46 @@ export class UIManager {
         
         expandedDiv.appendChild(coordsDiv)
         
+        // Create rotation display
+        const rotationDiv = document.createElement('div')
+        rotationDiv.className = 'model-rotation'
+        
+        // X rotation
+        const xRotation = document.createElement('div')
+        xRotation.className = 'coordinate-item'
+        xRotation.innerHTML = `
+            <div class="coordinate-symbol x-coord">X</div>
+            <span class="coordinate-value" data-rotation="x">${rotX}°</span>
+        `
+        
+        // Y rotation
+        const yRotation = document.createElement('div')
+        yRotation.className = 'coordinate-item'
+        yRotation.innerHTML = `
+            <div class="coordinate-symbol y-coord">Y</div>
+            <span class="coordinate-value" data-rotation="y">${rotY}°</span>
+        `
+        
+        // Z rotation
+        const zRotation = document.createElement('div')
+        zRotation.className = 'coordinate-item'
+        zRotation.innerHTML = `
+            <div class="coordinate-symbol z-coord">Z</div>
+            <span class="coordinate-value" data-rotation="z">${rotZ}°</span>
+        `
+        
+        rotationDiv.appendChild(xRotation)
+        rotationDiv.appendChild(yRotation)
+        rotationDiv.appendChild(zRotation)
+        
+        expandedDiv.appendChild(rotationDiv)
+        
         return expandedDiv
     }
     
     /**
-     * Updates coordinate display for expanded models
-     * Should be called when model positions change
+     * Updates coordinate and rotation display for expanded models
+     * Should be called when model positions or rotations change
      */
     updateCoordinateDisplay() {
         const models = this.sceneManager.getModels()
@@ -523,7 +563,9 @@ export class UIManager {
             if (modelIndex >= 0 && modelIndex < models.length) {
                 const model = models[modelIndex]
                 const position = model.position
+                const rotation = model.rotation
                 
+                // Update position coordinates
                 const xValue = content.querySelector('[data-coord="x"]')
                 const yValue = content.querySelector('[data-coord="y"]')
                 const zValue = content.querySelector('[data-coord="z"]')
@@ -531,6 +573,15 @@ export class UIManager {
                 if (xValue) xValue.textContent = position.x.toFixed(2)
                 if (yValue) yValue.textContent = position.y.toFixed(2)
                 if (zValue) zValue.textContent = position.z.toFixed(2)
+                
+                // Update rotation values (convert from radians to degrees)
+                const xRotValue = content.querySelector('[data-rotation="x"]')
+                const yRotValue = content.querySelector('[data-rotation="y"]')
+                const zRotValue = content.querySelector('[data-rotation="z"]')
+                
+                if (xRotValue) xRotValue.textContent = (rotation.x * 180 / Math.PI).toFixed(2) + '°'
+                if (yRotValue) yRotValue.textContent = (rotation.y * 180 / Math.PI).toFixed(2) + '°'
+                if (zRotValue) zRotValue.textContent = (rotation.z * 180 / Math.PI).toFixed(2) + '°'
             }
         })
     }

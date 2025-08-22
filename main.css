@@ -204,6 +204,13 @@
     display: flex;
     gap: 12px;
     align-items: center;
+    margin-bottom: 8px;
+}
+
+.model-rotation {
+    display: flex;
+    gap: 12px;
+    align-items: center;
 }
 
 .coordinate-item {
@@ -226,7 +233,7 @@
 }
 
 .coordinate-symbol.x-coord {
-    background-color: #0066ff;
+    background-color: #ff0000;
 }
 
 .coordinate-symbol.y-coord {
@@ -234,7 +241,7 @@
 }
 
 .coordinate-symbol.z-coord {
-    background-color: #ff0000;
+    background-color: #0066ff;
 }
 
 .coordinate-value {

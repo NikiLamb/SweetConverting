@@ -12,6 +12,7 @@ export class SceneManager {
         this.currentGizmo = null // Store the current origin gizmo
         this.transformControls = null // Store the transform controls for translation
         this.translationMode = false // Track if translation mode is active
+        this.rotationMode = false // Track if rotation mode is active
         this.transformChangeCallback = null // Callback for transform changes
         this.selectedModelIndices = [] // Store indices of models being translated
         this.multiModelGroup = null // Group object for multi-model translation
@@ -120,9 +121,9 @@ export class SceneManager {
             this.updateGizmoOnCameraChange()
         })
         
-        // Initialize Transform Controls for translation
+        // Initialize Transform Controls for translation and rotation
         this.transformControls = new TransformControls(this.camera, this.renderer.domElement)
-        this.transformControls.setMode('translate')
+        this.transformControls.setMode('translate') // Default to translate mode
         this.transformControls.setSpace('world')
         this.transformControls.visible = false
         this.scene.add(this.transformControls)
@@ -148,7 +149,7 @@ export class SceneManager {
             this.isTransformDragging = event.value
             
             // When dragging ends, set a flag to prevent immediate selection
-            if (!event.value && this.translationMode) {
+            if (!event.value && (this.translationMode || this.rotationMode)) {
                 this.transformJustFinished = true
                 // Clear the flag after a short delay
                 setTimeout(() => {
@@ -207,8 +208,8 @@ export class SceneManager {
                 console.log(`3D Model ${modelIndex} clicked`)
             }
         } else {
-            // Clicked on empty space - only handle if not in translation mode or just finished
-            if (!this.translationMode && this.onModelClickCallback) {
+            // Clicked on empty space - only handle if not in transform mode or just finished
+            if (!this.translationMode && !this.rotationMode && this.onModelClickCallback) {
                 // Call callback with -1 to indicate empty space click (for deselecting)
                 this.onModelClickCallback(-1, {
                     ctrlKey: event.ctrlKey,
@@ -769,7 +770,7 @@ export class SceneManager {
             this.transformControls.attach(model)
         } else {
             // Multiple models: create a group at the center point
-            this.createMultiModelTranslationGroup(validIndices)
+            this.createMultiModelTransformGroup(validIndices)
         }
         
         this.transformControls.visible = true
@@ -784,10 +785,10 @@ export class SceneManager {
     }
     
     /**
-     * Creates a group object positioned at the center of multiple models for translation
+     * Creates a group object positioned at the center of multiple models for transformation
      * @param {number[]} modelIndices - Array of model indices
      */
-    createMultiModelTranslationGroup(modelIndices) {
+    createMultiModelTransformGroup(modelIndices) {
         // Clean up any existing multi-model group
         this.cleanupMultiModelGroup()
         
@@ -797,14 +798,16 @@ export class SceneManager {
         // Create an invisible group object at the center position
         this.multiModelGroup = new THREE.Group()
         this.multiModelGroup.position.copy(centerPosition)
-        this.multiModelGroup.name = 'MultiModelTranslationGroup'
+        this.multiModelGroup.name = 'MultiModelTransformGroup'
         
-        // Store initial positions of all models relative to the group
+        // Store initial positions and rotations of all models relative to the group
         this.multiModelGroup.userData.initialPositions = []
+        this.multiModelGroup.userData.initialRotations = []
         modelIndices.forEach(index => {
             const model = this.models[index]
             const relativePosition = model.position.clone().sub(centerPosition)
             this.multiModelGroup.userData.initialPositions[index] = relativePosition
+            this.multiModelGroup.userData.initialRotations[index] = model.rotation.clone()
         })
         
         // Add the group to the scene (invisible, just for transform controls)
@@ -813,7 +816,7 @@ export class SceneManager {
         // Attach transform controls to the group
         this.transformControls.attach(this.multiModelGroup)
         
-        console.log(`Multi-model translation group created at center position:`, centerPosition)
+        console.log(`Multi-model transform group created at center position:`, centerPosition)
     }
     
     /**
@@ -868,21 +871,47 @@ export class SceneManager {
     }
     
     /**
-     * Updates positions of multiple models during translation
+     * Updates positions and rotations of multiple models during transformation
      */
     updateMultiModelPositions() {
         if (this.multiModelGroup && this.selectedModelIndices.length > 1) {
-            const groupPosition = this.multiModelGroup.position
             const initialPositions = this.multiModelGroup.userData.initialPositions
+            const initialRotations = this.multiModelGroup.userData.initialRotations
             
-            // Update each selected model's position relative to the group
-            this.selectedModelIndices.forEach(index => {
-                if (index < this.models.length && initialPositions[index]) {
-                    const model = this.models[index]
-                    const newPosition = groupPosition.clone().add(initialPositions[index])
-                    model.position.copy(newPosition)
-                }
-            })
+            if (this.translationMode) {
+                // Handle translation: update positions relative to group
+                const groupPosition = this.multiModelGroup.position
+                this.selectedModelIndices.forEach(index => {
+                    if (index < this.models.length && initialPositions[index]) {
+                        const model = this.models[index]
+                        const newPosition = groupPosition.clone().add(initialPositions[index])
+                        model.position.copy(newPosition)
+                    }
+                })
+            } else if (this.rotationMode) {
+                // Handle rotation: apply group rotation to all models while maintaining relative positions
+                const groupPosition = this.multiModelGroup.position
+                const groupRotation = this.multiModelGroup.rotation
+                
+                this.selectedModelIndices.forEach(index => {
+                    if (index < this.models.length && initialPositions[index] && initialRotations[index]) {
+                        const model = this.models[index]
+                        
+                        // Apply group rotation to the relative position
+                        const rotatedPosition = initialPositions[index].clone()
+                        rotatedPosition.applyEuler(groupRotation)
+                        
+                        // Set final position (rotated around center)
+                        model.position.copy(groupPosition).add(rotatedPosition)
+                        
+                        // Combine initial rotation with group rotation
+                        model.rotation.copy(initialRotations[index])
+                        model.rotation.x += groupRotation.x
+                        model.rotation.y += groupRotation.y
+                        model.rotation.z += groupRotation.z
+                    }
+                })
+            }
         }
     }
     
@@ -892,6 +921,95 @@ export class SceneManager {
      */
     isTranslationModeActive() {
         return this.translationMode
+    }
+    
+    /**
+     * Activates rotation mode for the selected model
+     * @param {number} modelIndex - Index of the model to attach transform controls to
+     */
+    activateRotationMode(modelIndex) {
+        this.activateRotationModeForMultiple([modelIndex])
+    }
+    
+    /**
+     * Activates rotation mode for multiple selected models
+     * @param {number[]} modelIndices - Array of model indices to rotate together
+     */
+    activateRotationModeForMultiple(modelIndices) {
+        if (modelIndices.length === 0) {
+            console.warn('No model indices provided for rotation mode')
+            return
+        }
+        
+        // Validate all indices
+        const validIndices = modelIndices.filter(index => 
+            index >= 0 && index < this.models.length
+        )
+        
+        if (validIndices.length === 0) {
+            console.warn('No valid model indices for rotation mode')
+            return
+        }
+        
+        // Store selected model indices for rotation
+        this.selectedModelIndices = validIndices
+        
+        // Set transform controls to rotation mode
+        this.transformControls.setMode('rotate')
+        
+        if (validIndices.length === 1) {
+            // Single model: attach directly to the model
+            const model = this.models[validIndices[0]]
+            this.transformControls.attach(model)
+        } else {
+            // Multiple models: create a group at the center point
+            this.createMultiModelTransformGroup(validIndices)
+        }
+        
+        this.transformControls.visible = true
+        this.rotationMode = true
+        
+        // Hide the origin gizmo when transform controls are active
+        if (this.currentGizmo) {
+            this.currentGizmo.visible = false
+        }
+        
+        console.log(`Rotation mode activated for ${validIndices.length} model(s)`)
+    }
+    
+    /**
+     * Deactivates rotation mode
+     */
+    deactivateRotationMode() {
+        this.transformControls.detach()
+        this.transformControls.visible = false
+        this.rotationMode = false
+        
+        // Reset transform controls back to translate mode as default
+        this.transformControls.setMode('translate')
+        
+        // Clean up multi-model group
+        this.cleanupMultiModelGroup()
+        this.selectedModelIndices = []
+        
+        // Reset transform state flags
+        this.isTransformDragging = false
+        this.transformJustFinished = false
+        
+        // Show the origin gizmo again if there was one
+        if (this.currentGizmo) {
+            this.currentGizmo.visible = true
+        }
+        
+        console.log('Rotation mode deactivated')
+    }
+    
+    /**
+     * Check if rotation mode is currently active
+     * @returns {boolean}
+     */
+    isRotationModeActive() {
+        return this.rotationMode
     }
     
     /**

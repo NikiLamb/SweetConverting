@@ -19,6 +19,9 @@ export class UIManager {
         this.translationModeActive = false
         this.escapeKeyPressed = false
         
+        // Rotation mode state
+        this.rotationModeActive = false
+        
         // UI Elements
         this.elements = {}
         
@@ -63,6 +66,7 @@ export class UIManager {
         // Toolbar UI elements
         this.elements.toolbarContainer = document.getElementById('toolbar-container')
         this.elements.translateButton = document.getElementById('translate-button')
+        this.elements.rotateButton = document.getElementById('rotate-button')
         
         this.validateUIElements()
     }
@@ -130,8 +134,9 @@ export class UIManager {
             this.updateCoordinateDisplay()
         })
         
-        // Initialize translate button state
+        // Initialize translate and rotate button states
         this.updateTranslateButtonState()
+        this.updateRotateButtonState()
         
         console.log('Event listeners set up successfully')
     }
@@ -150,6 +155,13 @@ export class UIManager {
         if (this.elements.translateButton) {
             this.elements.translateButton.addEventListener('click', () => {
                 this.toggleTranslationMode()
+            })
+        }
+        
+        // Rotate button event listener
+        if (this.elements.rotateButton) {
+            this.elements.rotateButton.addEventListener('click', () => {
+                this.toggleRotationMode()
             })
         }
     }
@@ -257,8 +269,9 @@ export class UIManager {
                 // Update the model tree
                 this.updateModelTree()
                 
-                // Update translate button state
+                // Update translate and rotate button states
                 this.updateTranslateButtonState()
+                this.updateRotateButtonState()
                 
                 // Update status message
                 let message = `Successfully loaded ${results.successful} model${results.successful > 1 ? 's' : ''}`
@@ -301,8 +314,9 @@ export class UIManager {
         // Update the model tree
         this.updateModelTree()
         
-        // Update translate button state
+        // Update translate and rotate button states
         this.updateTranslateButtonState()
+        this.updateRotateButtonState()
         
         console.log(`${fileType.toUpperCase()} Model loaded successfully`)
     }
@@ -327,8 +341,9 @@ export class UIManager {
         // Update the model tree (will hide it since no models)
         this.updateModelTree()
         
-        // Update translate button state
+        // Update translate and rotate button states
         this.updateTranslateButtonState()
+        this.updateRotateButtonState()
         
         console.log("Models cleared")
     }
@@ -762,8 +777,9 @@ export class UIManager {
         // Update 3D scene highlighting
         this.sceneManager.highlightSelectedModels(this.selectedModels)
         
-        // Update translate button state based on selection
+        // Update translate and rotate button states based on selection
         this.updateTranslateButtonState()
+        this.updateRotateButtonState()
     }
     
     toggleModelSelection(index) {
@@ -781,8 +797,8 @@ export class UIManager {
     }
     
     /**
-     * Updates the gizmo display based on current selection and translation mode
-     * Shows origin gizmo for single selection, manages both gizmos during translation
+     * Updates the gizmo display based on current selection and transform modes
+     * Shows origin gizmo for single selection, manages both gizmos during transform operations
      */
     updateGizmoDisplay() {
         if (this.selectedModels.size === 1) {
@@ -794,8 +810,12 @@ export class UIManager {
             if (this.translationModeActive) {
                 this.sceneManager.activateTranslationModeForMultiple([selectedIndex])
             }
+            // If rotation mode is active, activate it for the new selection
+            else if (this.rotationModeActive) {
+                this.sceneManager.activateRotationModeForMultiple([selectedIndex])
+            }
         } else if (this.selectedModels.size > 1) {
-            // Hide origin gizmo for multiple selection (will show translation gizmo at center if active)
+            // Hide origin gizmo for multiple selection (will show transform gizmo at center if active)
             this.sceneManager.hideOriginGizmo()
             
             // If translation mode is active, update it for multiple selection
@@ -803,13 +823,21 @@ export class UIManager {
                 const selectedIndices = Array.from(this.selectedModels)
                 this.sceneManager.activateTranslationModeForMultiple(selectedIndices)
             }
+            // If rotation mode is active, update it for multiple selection
+            else if (this.rotationModeActive) {
+                const selectedIndices = Array.from(this.selectedModels)
+                this.sceneManager.activateRotationModeForMultiple(selectedIndices)
+            }
         } else {
             // Hide gizmo for no selection
             this.sceneManager.hideOriginGizmo()
             
-            // Deactivate translation mode if no models are selected
+            // Deactivate transform modes if no models are selected
             if (this.translationModeActive) {
                 this.deactivateTranslationMode()
+            }
+            if (this.rotationModeActive) {
+                this.deactivateRotationMode()
             }
         }
     }
@@ -905,7 +933,7 @@ export class UIManager {
     }
     
     /**
-     * Handles escape key press with enhanced logic for translation mode
+     * Handles escape key press with enhanced logic for translation and rotation modes
      */
     handleEscapeKey() {
         if (this.translationModeActive) {
@@ -916,23 +944,35 @@ export class UIManager {
             setTimeout(() => {
                 this.escapeKeyPressed = false
             }, 300) // 300ms window for second escape
+        } else if (this.rotationModeActive) {
+            // First escape: deactivate rotation mode only
+            this.deactivateRotationMode()
+            this.escapeKeyPressed = true
+            // Set a timeout to reset the escape key state
+            setTimeout(() => {
+                this.escapeKeyPressed = false
+            }, 300) // 300ms window for second escape
         } else if (this.escapeKeyPressed) {
             // Second escape within timeout: clear model selection
             this.unselectAllModels()
             this.escapeKeyPressed = false
         } else if (this.selectedModels.size > 0) {
-            // If models are selected but translation mode is not active, clear selection
+            // If models are selected but no transform mode is active, clear selection
             this.unselectAllModels()
         }
     }
     
     /**
-     * Toggles translation mode on/off
+     * Toggles translation mode on/off with mutual exclusivity
      */
     toggleTranslationMode() {
         if (this.translationModeActive) {
             this.deactivateTranslationMode()
         } else {
+            // Deactivate rotation mode if it's active (mutual exclusivity)
+            if (this.rotationModeActive) {
+                this.deactivateRotationMode()
+            }
             this.activateTranslationMode()
         }
     }
@@ -994,6 +1034,82 @@ export class UIManager {
             // If no models or no selection and translation mode is active, deactivate it
             if ((!hasModels || !hasSelection) && this.translationModeActive) {
                 this.deactivateTranslationMode()
+            }
+        }
+    }
+    
+    /**
+     * Toggles rotation mode on/off with mutual exclusivity
+     */
+    toggleRotationMode() {
+        if (this.rotationModeActive) {
+            this.deactivateRotationMode()
+        } else {
+            // Deactivate translation mode if it's active (mutual exclusivity)
+            if (this.translationModeActive) {
+                this.deactivateTranslationMode()
+            }
+            this.activateRotationMode()
+        }
+    }
+    
+    /**
+     * Activates rotation mode for selected models
+     */
+    activateRotationMode() {
+        const models = this.sceneManager.getModels()
+        
+        if (models.length === 0) {
+            console.warn('Rotation mode cannot be activated: no models loaded')
+            return
+        }
+        
+        if (this.selectedModels.size > 0) {
+            const selectedIndices = Array.from(this.selectedModels)
+            this.sceneManager.activateRotationModeForMultiple(selectedIndices)
+            this.rotationModeActive = true
+            
+            // Update button appearance
+            if (this.elements.rotateButton) {
+                this.elements.rotateButton.classList.add('active')
+            }
+            
+            console.log(`Rotation mode activated for ${selectedIndices.length} model(s)`)
+        } else {
+            console.warn('Rotation mode requires at least one selected model')
+        }
+    }
+    
+    /**
+     * Deactivates rotation mode
+     */
+    deactivateRotationMode() {
+        this.sceneManager.deactivateRotationMode()
+        this.rotationModeActive = false
+        
+        // Update button appearance
+        if (this.elements.rotateButton) {
+            this.elements.rotateButton.classList.remove('active')
+        }
+        
+        console.log('Rotation mode deactivated')
+    }
+    
+    /**
+     * Updates the rotate button enabled/disabled state based on model selection
+     */
+    updateRotateButtonState() {
+        if (this.elements.rotateButton) {
+            const models = this.sceneManager.getModels()
+            const hasModels = models.length > 0
+            const hasSelection = this.selectedModels.size > 0
+            
+            // Button is enabled when there are models AND at least one is selected
+            this.elements.rotateButton.disabled = !hasModels || !hasSelection
+            
+            // If no models or no selection and rotation mode is active, deactivate it
+            if ((!hasModels || !hasSelection) && this.rotationModeActive) {
+                this.deactivateRotationMode()
             }
         }
     }

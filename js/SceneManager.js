@@ -13,6 +13,7 @@ export class SceneManager {
         this.transformControls = null // Store the transform controls for translation
         this.translationMode = false // Track if translation mode is active
         this.rotationMode = false // Track if rotation mode is active
+        this.scalingMode = false // Track if scaling mode is active
         this.transformChangeCallback = null // Callback for transform changes
         this.selectedModelIndices = [] // Store indices of models being translated
         this.multiModelGroup = null // Group object for multi-model translation
@@ -149,7 +150,7 @@ export class SceneManager {
             this.isTransformDragging = event.value
             
             // When dragging ends, set a flag to prevent immediate selection
-            if (!event.value && (this.translationMode || this.rotationMode)) {
+            if (!event.value && (this.translationMode || this.rotationMode || this.scalingMode)) {
                 this.transformJustFinished = true
                 // Clear the flag after a short delay
                 setTimeout(() => {
@@ -209,7 +210,7 @@ export class SceneManager {
             }
         } else {
             // Clicked on empty space - only handle if not in transform mode or just finished
-            if (!this.translationMode && !this.rotationMode && this.onModelClickCallback) {
+            if (!this.translationMode && !this.rotationMode && !this.scalingMode && this.onModelClickCallback) {
                 // Call callback with -1 to indicate empty space click (for deselecting)
                 this.onModelClickCallback(-1, {
                     ctrlKey: event.ctrlKey,
@@ -635,7 +636,7 @@ export class SceneManager {
         // Position the gizmo at the model's position
         gizmoGroup.position.copy(model.position)
         gizmoGroup.rotation.copy(model.rotation)
-        gizmoGroup.scale.copy(model.scale)
+        // Don't copy the model's scale - gizmo should maintain constant visual size
         
         // Store reference to model for screen-size updates
         gizmoGroup.userData.targetModel = model
@@ -689,7 +690,7 @@ export class SceneManager {
             const model = this.models[modelIndex]
             this.currentGizmo.position.copy(model.position)
             this.currentGizmo.rotation.copy(model.rotation)
-            this.currentGizmo.scale.copy(model.scale)
+            // Don't copy the model's scale - gizmo should maintain constant visual size
             
             // Update gizmo size to maintain constant screen size
             if (this.currentGizmo.userData.targetModel) {
@@ -911,6 +912,26 @@ export class SceneManager {
                         model.rotation.z += groupRotation.z
                     }
                 })
+            } else if (this.scalingMode) {
+                // Handle scaling: apply group scale to all models while maintaining relative positions
+                const groupPosition = this.multiModelGroup.position
+                const groupScale = this.multiModelGroup.scale
+                
+                this.selectedModelIndices.forEach(index => {
+                    if (index < this.models.length && initialPositions[index]) {
+                        const model = this.models[index]
+                        
+                        // Apply group scale to the relative position
+                        const scaledPosition = initialPositions[index].clone()
+                        scaledPosition.multiply(groupScale)
+                        
+                        // Set final position (scaled around center)
+                        model.position.copy(groupPosition).add(scaledPosition)
+                        
+                        // Apply group scale to the model
+                        model.scale.copy(groupScale)
+                    }
+                })
             }
         }
     }
@@ -1010,6 +1031,95 @@ export class SceneManager {
      */
     isRotationModeActive() {
         return this.rotationMode
+    }
+    
+    /**
+     * Activates scaling mode for the selected model
+     * @param {number} modelIndex - Index of the model to attach transform controls to
+     */
+    activateScalingMode(modelIndex) {
+        this.activateScalingModeForMultiple([modelIndex])
+    }
+    
+    /**
+     * Activates scaling mode for multiple selected models
+     * @param {number[]} modelIndices - Array of model indices to scale together
+     */
+    activateScalingModeForMultiple(modelIndices) {
+        if (modelIndices.length === 0) {
+            console.warn('No model indices provided for scaling mode')
+            return
+        }
+        
+        // Validate all indices
+        const validIndices = modelIndices.filter(index => 
+            index >= 0 && index < this.models.length
+        )
+        
+        if (validIndices.length === 0) {
+            console.warn('No valid model indices for scaling mode')
+            return
+        }
+        
+        // Store selected model indices for scaling
+        this.selectedModelIndices = validIndices
+        
+        // Set transform controls to scale mode
+        this.transformControls.setMode('scale')
+        
+        if (validIndices.length === 1) {
+            // Single model: attach directly to the model
+            const model = this.models[validIndices[0]]
+            this.transformControls.attach(model)
+        } else {
+            // Multiple models: create a group at the center point
+            this.createMultiModelTransformGroup(validIndices)
+        }
+        
+        this.transformControls.visible = true
+        this.scalingMode = true
+        
+        // Hide the origin gizmo when transform controls are active
+        if (this.currentGizmo) {
+            this.currentGizmo.visible = false
+        }
+        
+        console.log(`Scaling mode activated for ${validIndices.length} model(s)`)
+    }
+    
+    /**
+     * Deactivates scaling mode
+     */
+    deactivateScalingMode() {
+        this.transformControls.detach()
+        this.transformControls.visible = false
+        this.scalingMode = false
+        
+        // Reset transform controls back to translate mode as default
+        this.transformControls.setMode('translate')
+        
+        // Clean up multi-model group
+        this.cleanupMultiModelGroup()
+        this.selectedModelIndices = []
+        
+        // Reset transform state flags
+        this.isTransformDragging = false
+        this.transformJustFinished = false
+        
+        // Show the origin gizmo again if there was one
+        if (this.currentGizmo) {
+            this.currentGizmo.visible = true
+        }
+        
+        console.log('Scaling mode deactivated')
+    }
+    
+    /**
+     * Check if scaling mode is currently active
+     * @returns {boolean}
+     */
+    isScalingModeActive() {
+        return this.scalingMode
     }
     
     /**

@@ -22,6 +22,9 @@ export class UIManager {
         // Rotation mode state
         this.rotationModeActive = false
         
+        // Scale mode state
+        this.scalingModeActive = false
+        
         // UI Elements
         this.elements = {}
         
@@ -67,6 +70,7 @@ export class UIManager {
         this.elements.toolbarContainer = document.getElementById('toolbar-container')
         this.elements.translateButton = document.getElementById('translate-button')
         this.elements.rotateButton = document.getElementById('rotate-button')
+        this.elements.scaleButton = document.getElementById('scale-button')
         
         this.validateUIElements()
     }
@@ -134,9 +138,10 @@ export class UIManager {
             this.updateCoordinateDisplay()
         })
         
-        // Initialize translate and rotate button states
+        // Initialize translate, rotate, and scale button states
         this.updateTranslateButtonState()
         this.updateRotateButtonState()
+        this.updateScaleButtonState()
         
         console.log('Event listeners set up successfully')
     }
@@ -162,6 +167,13 @@ export class UIManager {
         if (this.elements.rotateButton) {
             this.elements.rotateButton.addEventListener('click', () => {
                 this.toggleRotationMode()
+            })
+        }
+        
+        // Scale button event listener
+        if (this.elements.scaleButton) {
+            this.elements.scaleButton.addEventListener('click', () => {
+                this.toggleScalingMode()
             })
         }
     }
@@ -269,9 +281,10 @@ export class UIManager {
                 // Update the model tree
                 this.updateModelTree()
                 
-                // Update translate and rotate button states
+                // Update translate, rotate, and scale button states
                 this.updateTranslateButtonState()
                 this.updateRotateButtonState()
+                this.updateScaleButtonState()
                 
                 // Update status message
                 let message = `Successfully loaded ${results.successful} model${results.successful > 1 ? 's' : ''}`
@@ -314,9 +327,10 @@ export class UIManager {
         // Update the model tree
         this.updateModelTree()
         
-        // Update translate and rotate button states
+        // Update translate, rotate, and scale button states
         this.updateTranslateButtonState()
         this.updateRotateButtonState()
+        this.updateScaleButtonState()
         
         console.log(`${fileType.toUpperCase()} Model loaded successfully`)
     }
@@ -341,9 +355,10 @@ export class UIManager {
         // Update the model tree (will hide it since no models)
         this.updateModelTree()
         
-        // Update translate and rotate button states
+        // Update translate, rotate, and scale button states
         this.updateTranslateButtonState()
         this.updateRotateButtonState()
+        this.updateScaleButtonState()
         
         console.log("Models cleared")
     }
@@ -670,8 +685,10 @@ export class UIManager {
             // Update the model tree
             this.updateModelTree()
             
-            // Update translate button state
+            // Update translate, rotate, and scale button states
             this.updateTranslateButtonState()
+            this.updateRotateButtonState()
+            this.updateScaleButtonState()
             
             // Update conversion section visibility
             const models = this.sceneManager.getModels()
@@ -689,11 +706,9 @@ export class UIManager {
      * @param {Object} eventInfo - Information about the click event (ctrl, shift keys)
      */
     handle3DModelClick(modelIndex, eventInfo) {
-        // Handle empty space click (deselect all if not holding modifier keys)
+        // Handle empty space click (keep selection - don't deselect models)
         if (modelIndex === -1) {
-            if (!eventInfo.ctrlKey && !eventInfo.metaKey && !eventInfo.shiftKey) {
-                this.unselectAllModels()
-            }
+            // Do nothing - preserve current selection when clicking empty space
             return
         }
         
@@ -777,9 +792,10 @@ export class UIManager {
         // Update 3D scene highlighting
         this.sceneManager.highlightSelectedModels(this.selectedModels)
         
-        // Update translate and rotate button states based on selection
+        // Update translate, rotate, and scale button states based on selection
         this.updateTranslateButtonState()
         this.updateRotateButtonState()
+        this.updateScaleButtonState()
     }
     
     toggleModelSelection(index) {
@@ -814,6 +830,10 @@ export class UIManager {
             else if (this.rotationModeActive) {
                 this.sceneManager.activateRotationModeForMultiple([selectedIndex])
             }
+            // If scaling mode is active, activate it for the new selection
+            else if (this.scalingModeActive) {
+                this.sceneManager.activateScalingModeForMultiple([selectedIndex])
+            }
         } else if (this.selectedModels.size > 1) {
             // Hide origin gizmo for multiple selection (will show transform gizmo at center if active)
             this.sceneManager.hideOriginGizmo()
@@ -828,6 +848,11 @@ export class UIManager {
                 const selectedIndices = Array.from(this.selectedModels)
                 this.sceneManager.activateRotationModeForMultiple(selectedIndices)
             }
+            // If scaling mode is active, update it for multiple selection
+            else if (this.scalingModeActive) {
+                const selectedIndices = Array.from(this.selectedModels)
+                this.sceneManager.activateScalingModeForMultiple(selectedIndices)
+            }
         } else {
             // Hide gizmo for no selection
             this.sceneManager.hideOriginGizmo()
@@ -838,6 +863,9 @@ export class UIManager {
             }
             if (this.rotationModeActive) {
                 this.deactivateRotationMode()
+            }
+            if (this.scalingModeActive) {
+                this.deactivateScalingMode()
             }
         }
     }
@@ -933,7 +961,8 @@ export class UIManager {
     }
     
     /**
-     * Handles escape key press with enhanced logic for translation and rotation modes
+     * Handles escape key press with enhanced logic for transform modes and model deselection
+     * Note: Escape key is now the primary way to deselect models (clicking empty space preserves selection)
      */
     handleEscapeKey() {
         if (this.translationModeActive) {
@@ -947,6 +976,14 @@ export class UIManager {
         } else if (this.rotationModeActive) {
             // First escape: deactivate rotation mode only
             this.deactivateRotationMode()
+            this.escapeKeyPressed = true
+            // Set a timeout to reset the escape key state
+            setTimeout(() => {
+                this.escapeKeyPressed = false
+            }, 300) // 300ms window for second escape
+        } else if (this.scalingModeActive) {
+            // First escape: deactivate scaling mode only
+            this.deactivateScalingMode()
             this.escapeKeyPressed = true
             // Set a timeout to reset the escape key state
             setTimeout(() => {
@@ -969,9 +1006,12 @@ export class UIManager {
         if (this.translationModeActive) {
             this.deactivateTranslationMode()
         } else {
-            // Deactivate rotation mode if it's active (mutual exclusivity)
+            // Deactivate other modes if they're active (mutual exclusivity)
             if (this.rotationModeActive) {
                 this.deactivateRotationMode()
+            }
+            if (this.scalingModeActive) {
+                this.deactivateScalingMode()
             }
             this.activateTranslationMode()
         }
@@ -1045,9 +1085,12 @@ export class UIManager {
         if (this.rotationModeActive) {
             this.deactivateRotationMode()
         } else {
-            // Deactivate translation mode if it's active (mutual exclusivity)
+            // Deactivate other modes if they're active (mutual exclusivity)
             if (this.translationModeActive) {
                 this.deactivateTranslationMode()
+            }
+            if (this.scalingModeActive) {
+                this.deactivateScalingMode()
             }
             this.activateRotationMode()
         }
@@ -1110,6 +1153,85 @@ export class UIManager {
             // If no models or no selection and rotation mode is active, deactivate it
             if ((!hasModels || !hasSelection) && this.rotationModeActive) {
                 this.deactivateRotationMode()
+            }
+        }
+    }
+    
+    /**
+     * Toggles scaling mode on/off with mutual exclusivity
+     */
+    toggleScalingMode() {
+        if (this.scalingModeActive) {
+            this.deactivateScalingMode()
+        } else {
+            // Deactivate other modes if they're active (mutual exclusivity)
+            if (this.translationModeActive) {
+                this.deactivateTranslationMode()
+            }
+            if (this.rotationModeActive) {
+                this.deactivateRotationMode()
+            }
+            this.activateScalingMode()
+        }
+    }
+    
+    /**
+     * Activates scaling mode for selected models
+     */
+    activateScalingMode() {
+        const models = this.sceneManager.getModels()
+        
+        if (models.length === 0) {
+            console.warn('Scaling mode cannot be activated: no models loaded')
+            return
+        }
+        
+        if (this.selectedModels.size > 0) {
+            const selectedIndices = Array.from(this.selectedModels)
+            this.sceneManager.activateScalingModeForMultiple(selectedIndices)
+            this.scalingModeActive = true
+            
+            // Update button appearance
+            if (this.elements.scaleButton) {
+                this.elements.scaleButton.classList.add('active')
+            }
+            
+            console.log(`Scaling mode activated for ${selectedIndices.length} model(s)`)
+        } else {
+            console.warn('Scaling mode requires at least one selected model')
+        }
+    }
+    
+    /**
+     * Deactivates scaling mode
+     */
+    deactivateScalingMode() {
+        this.sceneManager.deactivateScalingMode()
+        this.scalingModeActive = false
+        
+        // Update button appearance
+        if (this.elements.scaleButton) {
+            this.elements.scaleButton.classList.remove('active')
+        }
+        
+        console.log('Scaling mode deactivated')
+    }
+    
+    /**
+     * Updates the scale button enabled/disabled state based on model selection
+     */
+    updateScaleButtonState() {
+        if (this.elements.scaleButton) {
+            const models = this.sceneManager.getModels()
+            const hasModels = models.length > 0
+            const hasSelection = this.selectedModels.size > 0
+            
+            // Button is enabled when there are models AND at least one is selected
+            this.elements.scaleButton.disabled = !hasModels || !hasSelection
+            
+            // If no models or no selection and scaling mode is active, deactivate it
+            if ((!hasModels || !hasSelection) && this.scalingModeActive) {
+                this.deactivateScalingMode()
             }
         }
     }

@@ -479,133 +479,184 @@ export class UIManager {
         const rotY = (rotation.y * 180 / Math.PI).toFixed(2)
         const rotZ = (rotation.z * 180 / Math.PI).toFixed(2)
         
-        // Create coordinates label
-        const coordsLabel = document.createElement('div')
-        coordsLabel.className = 'model-section-label'
-        coordsLabel.textContent = 'Coordinates'
-        
-        // Create coordinates display
-        const coordsDiv = document.createElement('div')
-        coordsDiv.className = 'model-coordinates'
-        
-        // X coordinate
-        const xCoord = document.createElement('div')
-        xCoord.className = 'coordinate-item'
-        xCoord.innerHTML = `
-            <div class="coordinate-symbol x-coord">X</div>
-            <span class="coordinate-value" data-coord="x">${x}</span>
-        `
-        
-        // Y coordinate
-        const yCoord = document.createElement('div')
-        yCoord.className = 'coordinate-item'
-        yCoord.innerHTML = `
-            <div class="coordinate-symbol y-coord">Y</div>
-            <span class="coordinate-value" data-coord="y">${y}</span>
-        `
-        
-        // Z coordinate
-        const zCoord = document.createElement('div')
-        zCoord.className = 'coordinate-item'
-        zCoord.innerHTML = `
-            <div class="coordinate-symbol z-coord">Z</div>
-            <span class="coordinate-value" data-coord="z">${z}</span>
-        `
-        
-        coordsDiv.appendChild(xCoord)
-        coordsDiv.appendChild(yCoord)
-        coordsDiv.appendChild(zCoord)
-        
-        expandedDiv.appendChild(coordsLabel)
-        expandedDiv.appendChild(coordsDiv)
-        
-        // Create rotation label
-        const rotationLabel = document.createElement('div')
-        rotationLabel.className = 'model-section-label'
-        rotationLabel.textContent = 'Rotation'
-        
-        // Create rotation display
-        const rotationDiv = document.createElement('div')
-        rotationDiv.className = 'model-rotation'
-        
-        // X rotation
-        const xRotation = document.createElement('div')
-        xRotation.className = 'coordinate-item'
-        xRotation.innerHTML = `
-            <div class="coordinate-symbol x-coord">X</div>
-            <span class="coordinate-value" data-rotation="x">${rotX}°</span>
-        `
-        
-        // Y rotation
-        const yRotation = document.createElement('div')
-        yRotation.className = 'coordinate-item'
-        yRotation.innerHTML = `
-            <div class="coordinate-symbol y-coord">Y</div>
-            <span class="coordinate-value" data-rotation="y">${rotY}°</span>
-        `
-        
-        // Z rotation
-        const zRotation = document.createElement('div')
-        zRotation.className = 'coordinate-item'
-        zRotation.innerHTML = `
-            <div class="coordinate-symbol z-coord">Z</div>
-            <span class="coordinate-value" data-rotation="z">${rotZ}°</span>
-        `
-        
-        rotationDiv.appendChild(xRotation)
-        rotationDiv.appendChild(yRotation)
-        rotationDiv.appendChild(zRotation)
-        
-        expandedDiv.appendChild(rotationLabel)
-        expandedDiv.appendChild(rotationDiv)
-        
         // Get model scaling
         const scale = model.scale
         const scaleX = scale.x.toFixed(2)
         const scaleY = scale.y.toFixed(2)
         const scaleZ = scale.z.toFixed(2)
         
-        // Create scaling label
-        const scalingLabel = document.createElement('div')
-        scalingLabel.className = 'model-section-label'
-        scalingLabel.textContent = 'Scale'
+        // Create coordinates section
+        const coordsSection = this.createTransformSection('Coordinates', 'coord', index, {
+            x: x,
+            y: y,
+            z: z
+        })
         
-        // Create scaling display
-        const scalingDiv = document.createElement('div')
-        scalingDiv.className = 'model-scaling'
+        // Create rotation section  
+        const rotationSection = this.createTransformSection('Rotation', 'rotation', index, {
+            x: rotX,
+            y: rotY,
+            z: rotZ
+        })
         
-        // X scaling
-        const xScaling = document.createElement('div')
-        xScaling.className = 'coordinate-item'
-        xScaling.innerHTML = `
-            <div class="coordinate-symbol x-coord">X</div>
-            <span class="coordinate-value" data-scaling="x">${scaleX}</span>
-        `
+        // Create scale section
+        const scaleSection = this.createTransformSection('Scale', 'scaling', index, {
+            x: scaleX,
+            y: scaleY,
+            z: scaleZ
+        })
         
-        // Y scaling
-        const yScaling = document.createElement('div')
-        yScaling.className = 'coordinate-item'
-        yScaling.innerHTML = `
-            <div class="coordinate-symbol y-coord">Y</div>
-            <span class="coordinate-value" data-scaling="y">${scaleY}</span>
-        `
-        
-        // Z scaling
-        const zScaling = document.createElement('div')
-        zScaling.className = 'coordinate-item'
-        zScaling.innerHTML = `
-            <div class="coordinate-symbol z-coord">Z</div>
-            <span class="coordinate-value" data-scaling="z">${scaleZ}</span>
-        `
-        
-        scalingDiv.appendChild(xScaling)
-        scalingDiv.appendChild(yScaling)
-        scalingDiv.appendChild(zScaling)
-        
-        expandedDiv.appendChild(scalingLabel)
-        expandedDiv.appendChild(scalingDiv)
+        expandedDiv.appendChild(coordsSection)
+        expandedDiv.appendChild(rotationSection)
+        expandedDiv.appendChild(scaleSection)
         
         return expandedDiv
+    }
+    
+    /**
+     * Creates a transformation section with label, input fields, and reset button
+     * @param {string} title - Section title
+     * @param {string} type - Transform type (coord, rotation, scaling)
+     * @param {number} modelIndex - Model index
+     * @param {object} values - Current values {x, y, z}
+     * @returns {HTMLElement} - The section element
+     */
+    createTransformSection(title, type, modelIndex, values) {
+        const sectionDiv = document.createElement('div')
+        sectionDiv.className = 'transform-section'
+        
+        // Create section header with label and reset button
+        const headerDiv = document.createElement('div')
+        headerDiv.className = 'transform-section-header'
+        
+        const label = document.createElement('div')
+        label.className = 'model-section-label'
+        label.textContent = title
+        
+        const resetButton = document.createElement('button')
+        resetButton.className = 'reset-button'
+        resetButton.title = `Reset ${title.toLowerCase()} to original values`
+        resetButton.innerHTML = '↺'
+        resetButton.addEventListener('click', () => {
+            this.handleTransformReset(modelIndex, type)
+        })
+        
+        headerDiv.appendChild(label)
+        headerDiv.appendChild(resetButton)
+        
+        // Create input fields container
+        const inputsDiv = document.createElement('div')
+        inputsDiv.className = `model-${type === 'coord' ? 'coordinates' : type === 'rotation' ? 'rotation' : 'scaling'}`
+        
+        // Create X input
+        const xContainer = document.createElement('div')
+        xContainer.className = 'coordinate-item'
+        const xSymbol = document.createElement('div')
+        xSymbol.className = 'coordinate-symbol x-coord'
+        xSymbol.textContent = 'X'
+        const xInput = this.createTransformInput('x', type, values.x, modelIndex)
+        xContainer.appendChild(xSymbol)
+        xContainer.appendChild(xInput)
+        
+        // Create Y input
+        const yContainer = document.createElement('div')
+        yContainer.className = 'coordinate-item'
+        const ySymbol = document.createElement('div')
+        ySymbol.className = 'coordinate-symbol y-coord'
+        ySymbol.textContent = 'Y'
+        const yInput = this.createTransformInput('y', type, values.y, modelIndex)
+        yContainer.appendChild(ySymbol)
+        yContainer.appendChild(yInput)
+        
+        // Create Z input
+        const zContainer = document.createElement('div')
+        zContainer.className = 'coordinate-item'
+        const zSymbol = document.createElement('div')
+        zSymbol.className = 'coordinate-symbol z-coord'
+        zSymbol.textContent = 'Z'
+        const zInput = this.createTransformInput('z', type, values.z, modelIndex)
+        zContainer.appendChild(zSymbol)
+        zContainer.appendChild(zInput)
+        
+        inputsDiv.appendChild(xContainer)
+        inputsDiv.appendChild(yContainer)
+        inputsDiv.appendChild(zContainer)
+        
+        sectionDiv.appendChild(headerDiv)
+        sectionDiv.appendChild(inputsDiv)
+        
+        return sectionDiv
+    }
+    
+    /**
+     * Handles reset button clicks for transformations
+     * @param {number} modelIndex - Index of the model
+     * @param {string} type - Type of transformation to reset
+     */
+    handleTransformReset(modelIndex, type) {
+        // Map UI types to SceneManager types
+        const typeMap = {
+            'coord': 'position',
+            'rotation': 'rotation', 
+            'scaling': 'scale'
+        }
+        
+        const success = this.sceneManager.resetModelTransform(modelIndex, typeMap[type])
+        
+        if (success) {
+            // Update the input fields with reset values
+            this.updateTransformInputs(modelIndex, type)
+        } else {
+            this.showErrorToast('Failed to reset transformation')
+        }
+    }
+    
+    /**
+     * Updates input fields with current model values
+     * @param {number} modelIndex - Index of the model
+     * @param {string} type - Type of transformation
+     */
+    updateTransformInputs(modelIndex, type) {
+        const models = this.sceneManager.getModels()
+        const model = models[modelIndex]
+        
+        if (!model) return
+        
+        let values = {}
+        
+        switch (type) {
+            case 'coord':
+                values = {
+                    x: model.position.x.toFixed(2),
+                    y: model.position.y.toFixed(2),
+                    z: model.position.z.toFixed(2)
+                }
+                break
+            case 'rotation':
+                values = {
+                    x: (model.rotation.x * 180 / Math.PI).toFixed(2),
+                    y: (model.rotation.y * 180 / Math.PI).toFixed(2),
+                    z: (model.rotation.z * 180 / Math.PI).toFixed(2)
+                }
+                break
+            case 'scaling':
+                values = {
+                    x: model.scale.x.toFixed(2),
+                    y: model.scale.y.toFixed(2),
+                    z: model.scale.z.toFixed(2)
+                }
+                break
+        }
+        
+        // Update input fields
+        const inputs = document.querySelectorAll(`[data-model-index="${modelIndex}"][data-type="${type}"]`)
+        inputs.forEach(input => {
+            const axis = input.dataset.axis
+            if (values[axis] !== undefined) {
+                input.value = values[axis]
+                input.dataset.lastValid = values[axis]
+            }
+        })
     }
     
     /**
@@ -619,37 +670,10 @@ export class UIManager {
         expandedContents.forEach(content => {
             const modelIndex = parseInt(content.getAttribute('data-model-index'))
             if (modelIndex >= 0 && modelIndex < models.length) {
-                const model = models[modelIndex]
-                const position = model.position
-                const rotation = model.rotation
-                
-                // Update position coordinates
-                const xValue = content.querySelector('[data-coord="x"]')
-                const yValue = content.querySelector('[data-coord="y"]')
-                const zValue = content.querySelector('[data-coord="z"]')
-                
-                if (xValue) xValue.textContent = position.x.toFixed(2)
-                if (yValue) yValue.textContent = position.y.toFixed(2)
-                if (zValue) zValue.textContent = position.z.toFixed(2)
-                
-                // Update rotation values (convert from radians to degrees)
-                const xRotValue = content.querySelector('[data-rotation="x"]')
-                const yRotValue = content.querySelector('[data-rotation="y"]')
-                const zRotValue = content.querySelector('[data-rotation="z"]')
-                
-                if (xRotValue) xRotValue.textContent = (rotation.x * 180 / Math.PI).toFixed(2) + '°'
-                if (yRotValue) yRotValue.textContent = (rotation.y * 180 / Math.PI).toFixed(2) + '°'
-                if (zRotValue) zRotValue.textContent = (rotation.z * 180 / Math.PI).toFixed(2) + '°'
-                
-                // Update scaling values
-                const scale = model.scale
-                const xScaleValue = content.querySelector('[data-scaling="x"]')
-                const yScaleValue = content.querySelector('[data-scaling="y"]')
-                const zScaleValue = content.querySelector('[data-scaling="z"]')
-                
-                if (xScaleValue) xScaleValue.textContent = scale.x.toFixed(2)
-                if (yScaleValue) yScaleValue.textContent = scale.y.toFixed(2)
-                if (zScaleValue) zScaleValue.textContent = scale.z.toFixed(2)
+                // Update all transform input fields for this model
+                this.updateTransformInputs(modelIndex, 'coord')
+                this.updateTransformInputs(modelIndex, 'rotation')
+                this.updateTransformInputs(modelIndex, 'scaling')
             }
         })
     }
@@ -1068,6 +1092,199 @@ export class UIManager {
         // You can implement error display here
         console.error(message)
         alert(message) // Simple alert for now
+    }
+    
+    /**
+     * Shows a toast notification at the bottom left corner of the window
+     * @param {string} message - The message to display
+     * @param {string} type - The type of toast ('error', 'success', 'info')
+     * @param {number} duration - Duration in milliseconds (default: 3000)
+     */
+    showToast(message, type = 'info', duration = 3000) {
+        // Create toast container if it doesn't exist
+        let toastContainer = document.getElementById('toast-container')
+        if (!toastContainer) {
+            toastContainer = document.createElement('div')
+            toastContainer.id = 'toast-container'
+            toastContainer.className = 'toast-container'
+            document.body.appendChild(toastContainer)
+        }
+        
+        // Create toast element
+        const toast = document.createElement('div')
+        toast.className = `toast toast-${type}`
+        toast.textContent = message
+        
+        // Add toast to container
+        toastContainer.appendChild(toast)
+        
+        // Trigger animation
+        setTimeout(() => {
+            toast.classList.add('toast-show')
+        }, 10)
+        
+        // Remove toast after duration
+        setTimeout(() => {
+            toast.classList.remove('toast-show')
+            toast.classList.add('toast-hide')
+            
+            // Remove from DOM after animation
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast)
+                }
+            }, 300)
+        }, duration)
+    }
+    
+    /**
+     * Shows an error toast notification
+     * @param {string} message - The error message to display
+     */
+    showErrorToast(message) {
+        this.showToast(message, 'error', 4000)
+    }
+    
+    /**
+     * Validates and formats a numeric input value
+     * @param {string} value - The input value to validate
+     * @param {string} lastValidValue - The last valid value to fall back to
+     * @returns {object} - {isValid: boolean, value: string, numericValue: number}
+     */
+    validateNumericInput(value, lastValidValue = '0.00') {
+        // Allow empty string temporarily (during typing)
+        if (value === '') {
+            return { isValid: true, value: '', numericValue: 0 }
+        }
+        
+        // Allow only numbers, decimal point, and minus sign
+        const allowedPattern = /^-?\d*\.?\d*$/
+        if (!allowedPattern.test(value)) {
+            return { isValid: false, value: lastValidValue, numericValue: parseFloat(lastValidValue) }
+        }
+        
+        // Check for valid number format
+        const numericValue = parseFloat(value)
+        if (isNaN(numericValue)) {
+            // If it's not a valid number but matches pattern (e.g., ".", "-", "-."), allow it temporarily
+            if (value === '.' || value === '-' || value === '-.') {
+                return { isValid: true, value: value, numericValue: 0 }
+            }
+            return { isValid: false, value: lastValidValue, numericValue: parseFloat(lastValidValue) }
+        }
+        
+        return { isValid: true, value: value, numericValue: numericValue }
+    }
+    
+    /**
+     * Formats a numeric value to two decimal places
+     * @param {number} value - The numeric value to format
+     * @returns {string} - Formatted value string
+     */
+    formatToTwoDecimals(value) {
+        return parseFloat(value).toFixed(2)
+    }
+    
+    /**
+     * Creates an input field for transformation values
+     * @param {string} axis - The axis (x, y, z)
+     * @param {string} type - The transformation type (coord, rotation, scaling)
+     * @param {string} initialValue - The initial value
+     * @param {number} modelIndex - The model index
+     * @returns {HTMLElement} - The input field element
+     */
+    createTransformInput(axis, type, initialValue, modelIndex) {
+        const input = document.createElement('input')
+        input.type = 'text'
+        input.className = 'transform-input'
+        input.value = initialValue
+        input.dataset.axis = axis
+        input.dataset.type = type
+        input.dataset.modelIndex = modelIndex
+        input.dataset.lastValid = initialValue
+        
+        // Input event - real-time validation
+        input.addEventListener('input', (e) => {
+            const validation = this.validateNumericInput(e.target.value, e.target.dataset.lastValid)
+            
+            if (!validation.isValid) {
+                // Show error toast and revert to last valid value
+                this.showErrorToast('Invalid input. Only numbers and "-" are allowed.')
+                e.target.value = validation.value
+            } else {
+                e.target.dataset.lastValid = validation.value
+            }
+        })
+        
+        // Keydown event - handle Enter key to trigger blur
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault()
+                e.target.blur() // This will trigger the blur event
+            }
+        })
+        
+        // Blur event - format and apply changes
+        input.addEventListener('blur', (e) => {
+            const value = e.target.value
+            
+            // Handle empty value
+            if (value === '' || value === '.' || value === '-' || value === '-.') {
+                e.target.value = '0.00'
+                e.target.dataset.lastValid = '0.00'
+            } else {
+                // Format to two decimal places
+                const numericValue = parseFloat(value)
+                const formattedValue = this.formatToTwoDecimals(numericValue)
+                e.target.value = formattedValue
+                e.target.dataset.lastValid = formattedValue
+            }
+            
+            // Apply transformation to the model
+            this.applyTransformFromInput(
+                parseInt(e.target.dataset.modelIndex),
+                e.target.dataset.type,
+                e.target.dataset.axis,
+                parseFloat(e.target.value)
+            )
+        })
+        
+        return input
+    }
+    
+    /**
+     * Applies transformation changes from input to the 3D model
+     * @param {number} modelIndex - Index of the model
+     * @param {string} type - Type of transformation (coord, rotation, scaling)
+     * @param {string} axis - The axis (x, y, z)
+     * @param {number} value - The new value
+     */
+    applyTransformFromInput(modelIndex, type, axis, value) {
+        // Get all current values for this transform type
+        const inputs = document.querySelectorAll(`[data-model-index="${modelIndex}"][data-type="${type}"]`)
+        const values = { x: 0, y: 0, z: 0 }
+        
+        inputs.forEach(input => {
+            values[input.dataset.axis] = parseFloat(input.value) || 0
+        })
+        
+        // Apply to the scene
+        let success = false
+        switch (type) {
+            case 'coord':
+                success = this.sceneManager.setModelPosition(modelIndex, values.x, values.y, values.z)
+                break
+            case 'rotation':
+                success = this.sceneManager.setModelRotation(modelIndex, values.x, values.y, values.z)
+                break
+            case 'scaling':
+                success = this.sceneManager.setModelScale(modelIndex, values.x, values.y, values.z)
+                break
+        }
+        
+        if (!success) {
+            console.error('Failed to apply transformation to model')
+        }
     }
     
     // Getter methods for accessing current state

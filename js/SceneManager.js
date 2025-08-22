@@ -267,7 +267,21 @@ export class SceneManager {
     
     addModel(model, fileMetadata = {}) {
         this.models.push(model)
-        this.modelMetadata.push(fileMetadata)
+        
+        // Store original transformation values for reset functionality
+        const originalTransforms = {
+            position: model.position.clone(),
+            rotation: model.rotation.clone(),
+            scale: model.scale.clone()
+        }
+        
+        // Enhance metadata with original transformation values
+        const enhancedMetadata = {
+            ...fileMetadata,
+            originalTransforms: originalTransforms
+        }
+        
+        this.modelMetadata.push(enhancedMetadata)
         
         // Store original materials for selection highlighting
         this.storeOriginalMaterials(model)
@@ -1136,5 +1150,140 @@ export class SceneManager {
      */
     setTransformChangeCallback(callback) {
         this.transformChangeCallback = callback
+    }
+    
+    /**
+     * Sets the position of a model by index
+     * @param {number} modelIndex - Index of the model
+     * @param {number} x - X coordinate
+     * @param {number} y - Y coordinate  
+     * @param {number} z - Z coordinate
+     */
+    setModelPosition(modelIndex, x, y, z) {
+        if (modelIndex >= 0 && modelIndex < this.models.length) {
+            const model = this.models[modelIndex]
+            model.position.set(x, y, z)
+            
+            // Update gizmo if this model is currently selected
+            if (this.currentGizmo && this.currentGizmo.userData.targetModel === model) {
+                this.updateOriginGizmo(modelIndex)
+            }
+            
+            // Call transform change callback
+            if (this.transformChangeCallback) {
+                this.transformChangeCallback()
+            }
+            
+            return true
+        }
+        return false
+    }
+    
+    /**
+     * Sets the rotation of a model by index (in degrees)
+     * @param {number} modelIndex - Index of the model
+     * @param {number} x - X rotation in degrees
+     * @param {number} y - Y rotation in degrees
+     * @param {number} z - Z rotation in degrees
+     */
+    setModelRotation(modelIndex, x, y, z) {
+        if (modelIndex >= 0 && modelIndex < this.models.length) {
+            const model = this.models[modelIndex]
+            // Convert degrees to radians
+            model.rotation.set(
+                x * Math.PI / 180,
+                y * Math.PI / 180, 
+                z * Math.PI / 180
+            )
+            
+            // Update gizmo if this model is currently selected
+            if (this.currentGizmo && this.currentGizmo.userData.targetModel === model) {
+                this.updateOriginGizmo(modelIndex)
+            }
+            
+            // Call transform change callback
+            if (this.transformChangeCallback) {
+                this.transformChangeCallback()
+            }
+            
+            return true
+        }
+        return false
+    }
+    
+    /**
+     * Sets the scale of a model by index
+     * @param {number} modelIndex - Index of the model
+     * @param {number} x - X scale factor
+     * @param {number} y - Y scale factor
+     * @param {number} z - Z scale factor
+     */
+    setModelScale(modelIndex, x, y, z) {
+        if (modelIndex >= 0 && modelIndex < this.models.length) {
+            const model = this.models[modelIndex]
+            model.scale.set(x, y, z)
+            
+            // Update gizmo if this model is currently selected
+            if (this.currentGizmo && this.currentGizmo.userData.targetModel === model) {
+                this.updateOriginGizmo(modelIndex)
+            }
+            
+            // Call transform change callback
+            if (this.transformChangeCallback) {
+                this.transformChangeCallback()
+            }
+            
+            return true
+        }
+        return false
+    }
+    
+    /**
+     * Resets model transformations to original values
+     * @param {number} modelIndex - Index of the model
+     * @param {string} transformType - Type of transform to reset ('position', 'rotation', 'scale', or 'all')
+     */
+    resetModelTransform(modelIndex, transformType = 'all') {
+        if (modelIndex >= 0 && modelIndex < this.models.length) {
+            const model = this.models[modelIndex]
+            const metadata = this.modelMetadata[modelIndex]
+            
+            if (metadata && metadata.originalTransforms) {
+                const original = metadata.originalTransforms
+                
+                switch (transformType) {
+                    case 'position':
+                        model.position.copy(original.position)
+                        break
+                    case 'rotation':
+                        model.rotation.copy(original.rotation)
+                        break
+                    case 'scale':
+                        model.scale.copy(original.scale)
+                        break
+                    case 'all':
+                        model.position.copy(original.position)
+                        model.rotation.copy(original.rotation)
+                        model.scale.copy(original.scale)
+                        break
+                    default:
+                        console.warn('Invalid transform type:', transformType)
+                        return false
+                }
+                
+                // Update gizmo if this model is currently selected
+                if (this.currentGizmo && this.currentGizmo.userData.targetModel === model) {
+                    this.updateOriginGizmo(modelIndex)
+                }
+                
+                // Call transform change callback
+                if (this.transformChangeCallback) {
+                    this.transformChangeCallback()
+                }
+                
+                return true
+            }
+        }
+        return false
     }
 }

@@ -15,6 +15,10 @@ export class UIManager {
         // Expansion state for model tree items
         this.expandedModels = new Set()
         
+        // Translation mode state
+        this.translationModeActive = false
+        this.escapeKeyPressed = false
+        
         // UI Elements
         this.elements = {}
         
@@ -54,6 +58,10 @@ export class UIManager {
         // Model tree UI elements
         this.elements.modelTreeContainer = document.getElementById('model-tree-container')
         this.elements.modelTreeContent = document.getElementById('model-tree-content')
+        
+        // Toolbar UI elements
+        this.elements.toolbarContainer = document.getElementById('toolbar-container')
+        this.elements.translateButton = document.getElementById('translate-button')
         
         this.validateUIElements()
     }
@@ -113,16 +121,36 @@ export class UIManager {
         // Selection event listeners
         this.setupSelectionEventListeners()
         
+        // Toolbar event listeners
+        this.setupToolbarEventListeners()
+        
+        // Set up transform change callback
+        this.sceneManager.setTransformChangeCallback(() => {
+            this.updateCoordinateDisplay()
+        })
+        
+        // Initialize translate button state
+        this.updateTranslateButtonState()
+        
         console.log('Event listeners set up successfully')
     }
     
     setupSelectionEventListeners() {
-        // ESC key to unselect all models
+        // Enhanced ESC key handling for translation mode and model selection
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                this.unselectAllModels()
+                this.handleEscapeKey()
             }
         })
+    }
+    
+    setupToolbarEventListeners() {
+        // Translate button event listener
+        if (this.elements.translateButton) {
+            this.elements.translateButton.addEventListener('click', () => {
+                this.toggleTranslationMode()
+            })
+        }
     }
     
     setupViewerContainer() {
@@ -197,6 +225,9 @@ export class UIManager {
                 // Update the model tree
                 this.updateModelTree()
                 
+                // Update translate button state
+                this.updateTranslateButtonState()
+                
                 // Update status message
                 let message = `Successfully loaded ${results.successful} model${results.successful > 1 ? 's' : ''}`
                 if (results.failed > 0) {
@@ -238,6 +269,9 @@ export class UIManager {
         // Update the model tree
         this.updateModelTree()
         
+        // Update translate button state
+        this.updateTranslateButtonState()
+        
         console.log(`${fileType.toUpperCase()} Model loaded successfully`)
     }
     
@@ -261,6 +295,9 @@ export class UIManager {
         this.elements.conversionSection.style.display = 'none'
         // Update the model tree (will hide it since no models)
         this.updateModelTree()
+        
+        // Update translate button state
+        this.updateTranslateButtonState()
         
         console.log("Models cleared")
     }
@@ -588,6 +625,9 @@ export class UIManager {
             // Update the model tree
             this.updateModelTree()
             
+            // Update translate button state
+            this.updateTranslateButtonState()
+            
             // Update conversion section visibility
             const models = this.sceneManager.getModels()
             if (models.length === 0) {
@@ -600,10 +640,18 @@ export class UIManager {
     
     /**
      * Handles clicks on 3D models in the scene
-     * @param {number} modelIndex - Index of the clicked model
+     * @param {number} modelIndex - Index of the clicked model (-1 for empty space)
      * @param {Object} eventInfo - Information about the click event (ctrl, shift keys)
      */
     handle3DModelClick(modelIndex, eventInfo) {
+        // Handle empty space click (deselect all if not holding modifier keys)
+        if (modelIndex === -1) {
+            if (!eventInfo.ctrlKey && !eventInfo.metaKey && !eventInfo.shiftKey) {
+                this.unselectAllModels()
+            }
+            return
+        }
+        
         if (eventInfo.shiftKey) {
             // Range selection with Shift+click
             this.handleRangeSelection(modelIndex)
@@ -683,6 +731,9 @@ export class UIManager {
         
         // Update 3D scene highlighting
         this.sceneManager.highlightSelectedModels(this.selectedModels)
+        
+        // Update translate button state based on selection
+        this.updateTranslateButtonState()
     }
     
     toggleModelSelection(index) {
@@ -700,17 +751,36 @@ export class UIManager {
     }
     
     /**
-     * Updates the gizmo display based on current selection
-     * Shows gizmo for single selection, hides for multiple/no selection
+     * Updates the gizmo display based on current selection and translation mode
+     * Shows origin gizmo for single selection, manages both gizmos during translation
      */
     updateGizmoDisplay() {
         if (this.selectedModels.size === 1) {
-            // Show gizmo for single selected model
+            // Show origin gizmo for single selected model
             const selectedIndex = Array.from(this.selectedModels)[0]
             this.sceneManager.showOriginGizmo(selectedIndex)
-        } else {
-            // Hide gizmo for multiple selection or no selection
+            
+            // If translation mode is active, activate it for the new selection
+            if (this.translationModeActive) {
+                this.sceneManager.activateTranslationModeForMultiple([selectedIndex])
+            }
+        } else if (this.selectedModels.size > 1) {
+            // Hide origin gizmo for multiple selection (will show translation gizmo at center if active)
             this.sceneManager.hideOriginGizmo()
+            
+            // If translation mode is active, update it for multiple selection
+            if (this.translationModeActive) {
+                const selectedIndices = Array.from(this.selectedModels)
+                this.sceneManager.activateTranslationModeForMultiple(selectedIndices)
+            }
+        } else {
+            // Hide gizmo for no selection
+            this.sceneManager.hideOriginGizmo()
+            
+            // Deactivate translation mode if no models are selected
+            if (this.translationModeActive) {
+                this.deactivateTranslationMode()
+            }
         }
     }
     
@@ -802,5 +872,99 @@ export class UIManager {
     
     getCurrentFileType() {
         return this.currentLoadedFileType
+    }
+    
+    /**
+     * Handles escape key press with enhanced logic for translation mode
+     */
+    handleEscapeKey() {
+        if (this.translationModeActive) {
+            // First escape: deactivate translation mode only
+            this.deactivateTranslationMode()
+            this.escapeKeyPressed = true
+            // Set a timeout to reset the escape key state
+            setTimeout(() => {
+                this.escapeKeyPressed = false
+            }, 300) // 300ms window for second escape
+        } else if (this.escapeKeyPressed) {
+            // Second escape within timeout: clear model selection
+            this.unselectAllModels()
+            this.escapeKeyPressed = false
+        } else if (this.selectedModels.size > 0) {
+            // If models are selected but translation mode is not active, clear selection
+            this.unselectAllModels()
+        }
+    }
+    
+    /**
+     * Toggles translation mode on/off
+     */
+    toggleTranslationMode() {
+        if (this.translationModeActive) {
+            this.deactivateTranslationMode()
+        } else {
+            this.activateTranslationMode()
+        }
+    }
+    
+    /**
+     * Activates translation mode for selected models
+     */
+    activateTranslationMode() {
+        const models = this.sceneManager.getModels()
+        
+        if (models.length === 0) {
+            console.warn('Translation mode cannot be activated: no models loaded')
+            return
+        }
+        
+        if (this.selectedModels.size > 0) {
+            const selectedIndices = Array.from(this.selectedModels)
+            this.sceneManager.activateTranslationModeForMultiple(selectedIndices)
+            this.translationModeActive = true
+            
+            // Update button appearance
+            if (this.elements.translateButton) {
+                this.elements.translateButton.classList.add('active')
+            }
+            
+            console.log(`Translation mode activated for ${selectedIndices.length} model(s)`)
+        } else {
+            console.warn('Translation mode requires at least one selected model')
+        }
+    }
+    
+    /**
+     * Deactivates translation mode
+     */
+    deactivateTranslationMode() {
+        this.sceneManager.deactivateTranslationMode()
+        this.translationModeActive = false
+        
+        // Update button appearance
+        if (this.elements.translateButton) {
+            this.elements.translateButton.classList.remove('active')
+        }
+        
+        console.log('Translation mode deactivated')
+    }
+    
+    /**
+     * Updates the translate button enabled/disabled state based on model selection
+     */
+    updateTranslateButtonState() {
+        if (this.elements.translateButton) {
+            const models = this.sceneManager.getModels()
+            const hasModels = models.length > 0
+            const hasSelection = this.selectedModels.size > 0
+            
+            // Button is enabled when there are models AND at least one is selected
+            this.elements.translateButton.disabled = !hasModels || !hasSelection
+            
+            // If no models or no selection and translation mode is active, deactivate it
+            if ((!hasModels || !hasSelection) && this.translationModeActive) {
+                this.deactivateTranslationMode()
+            }
+        }
     }
 }

@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { TransformControls } from 'three/addons/controls/TransformControls.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
 export class SceneManager {
@@ -9,6 +10,13 @@ export class SceneManager {
         this.modelMetadata = [] // Store metadata for each model
         this.animationFrame = 0
         this.currentGizmo = null // Store the current origin gizmo
+        this.transformControls = null // Store the transform controls for translation
+        this.translationMode = false // Track if translation mode is active
+        this.transformChangeCallback = null // Callback for transform changes
+        this.selectedModelIndices = [] // Store indices of models being translated
+        this.multiModelGroup = null // Group object for multi-model translation
+        this.isTransformDragging = false // Track if transform controls are being dragged
+        this.transformJustFinished = false // Track if transform just finished to prevent selection
         
         // Raycasting for 3D object selection
         this.raycaster = new THREE.Raycaster()
@@ -111,6 +119,43 @@ export class SceneManager {
         this.controls.addEventListener('change', () => {
             this.updateGizmoOnCameraChange()
         })
+        
+        // Initialize Transform Controls for translation
+        this.transformControls = new TransformControls(this.camera, this.renderer.domElement)
+        this.transformControls.setMode('translate')
+        this.transformControls.setSpace('world')
+        this.transformControls.visible = false
+        this.scene.add(this.transformControls)
+        
+        // Transform controls event handlers
+        this.transformControls.addEventListener('change', () => {
+            this.updateGizmoOnCameraChange()
+            
+            // Handle multi-model translation
+            this.updateMultiModelPositions()
+            
+            // Call coordinate update callback if set
+            if (this.transformChangeCallback) {
+                this.transformChangeCallback()
+            }
+        })
+        
+        this.transformControls.addEventListener('dragging-changed', (event) => {
+            // Disable orbit controls when dragging transform controls
+            this.controls.enabled = !event.value
+            
+            // Track dragging state
+            this.isTransformDragging = event.value
+            
+            // When dragging ends, set a flag to prevent immediate selection
+            if (!event.value && this.translationMode) {
+                this.transformJustFinished = true
+                // Clear the flag after a short delay
+                setTimeout(() => {
+                    this.transformJustFinished = false
+                }, 100) // 100ms delay to prevent accidental selection
+            }
+        })
     }
     
     setupEventListeners() {
@@ -127,6 +172,12 @@ export class SceneManager {
     onCanvasClick(event) {
         // Prevent default behavior
         event.preventDefault()
+        
+        // Skip selection if transform controls are being dragged or just finished
+        if (this.isTransformDragging || this.transformJustFinished) {
+            console.log('Skipping selection due to transform operation')
+            return
+        }
         
         // Calculate mouse position in normalized device coordinates (-1 to +1) for both components
         const rect = this.canvas.getBoundingClientRect()
@@ -154,6 +205,17 @@ export class SceneManager {
                     })
                 }
                 console.log(`3D Model ${modelIndex} clicked`)
+            }
+        } else {
+            // Clicked on empty space - only handle if not in translation mode or just finished
+            if (!this.translationMode && this.onModelClickCallback) {
+                // Call callback with -1 to indicate empty space click (for deselecting)
+                this.onModelClickCallback(-1, {
+                    ctrlKey: event.ctrlKey,
+                    metaKey: event.metaKey,
+                    shiftKey: event.shiftKey
+                })
+                console.log('Empty space clicked')
             }
         }
     }
@@ -668,5 +730,183 @@ export class SceneManager {
                 })
             }
         }
+    }
+    
+    /**
+     * Activates translation mode for the selected model
+     * @param {number} modelIndex - Index of the model to attach transform controls to
+     */
+    activateTranslationMode(modelIndex) {
+        this.activateTranslationModeForMultiple([modelIndex])
+    }
+    
+    /**
+     * Activates translation mode for multiple selected models
+     * @param {number[]} modelIndices - Array of model indices to translate together
+     */
+    activateTranslationModeForMultiple(modelIndices) {
+        if (modelIndices.length === 0) {
+            console.warn('No model indices provided for translation mode')
+            return
+        }
+        
+        // Validate all indices
+        const validIndices = modelIndices.filter(index => 
+            index >= 0 && index < this.models.length
+        )
+        
+        if (validIndices.length === 0) {
+            console.warn('No valid model indices for translation mode')
+            return
+        }
+        
+        // Store selected model indices for translation
+        this.selectedModelIndices = validIndices
+        
+        if (validIndices.length === 1) {
+            // Single model: attach directly to the model
+            const model = this.models[validIndices[0]]
+            this.transformControls.attach(model)
+        } else {
+            // Multiple models: create a group at the center point
+            this.createMultiModelTranslationGroup(validIndices)
+        }
+        
+        this.transformControls.visible = true
+        this.translationMode = true
+        
+        // Hide the origin gizmo when transform controls are active
+        if (this.currentGizmo) {
+            this.currentGizmo.visible = false
+        }
+        
+        console.log(`Translation mode activated for ${validIndices.length} model(s)`)
+    }
+    
+    /**
+     * Creates a group object positioned at the center of multiple models for translation
+     * @param {number[]} modelIndices - Array of model indices
+     */
+    createMultiModelTranslationGroup(modelIndices) {
+        // Clean up any existing multi-model group
+        this.cleanupMultiModelGroup()
+        
+        // Calculate center position of all selected models
+        const centerPosition = this.calculateCenterPosition(modelIndices)
+        
+        // Create an invisible group object at the center position
+        this.multiModelGroup = new THREE.Group()
+        this.multiModelGroup.position.copy(centerPosition)
+        this.multiModelGroup.name = 'MultiModelTranslationGroup'
+        
+        // Store initial positions of all models relative to the group
+        this.multiModelGroup.userData.initialPositions = []
+        modelIndices.forEach(index => {
+            const model = this.models[index]
+            const relativePosition = model.position.clone().sub(centerPosition)
+            this.multiModelGroup.userData.initialPositions[index] = relativePosition
+        })
+        
+        // Add the group to the scene (invisible, just for transform controls)
+        this.scene.add(this.multiModelGroup)
+        
+        // Attach transform controls to the group
+        this.transformControls.attach(this.multiModelGroup)
+        
+        console.log(`Multi-model translation group created at center position:`, centerPosition)
+    }
+    
+    /**
+     * Calculates the center position of multiple models
+     * @param {number[]} modelIndices - Array of model indices
+     * @returns {THREE.Vector3} - Center position
+     */
+    calculateCenterPosition(modelIndices) {
+        const centerPosition = new THREE.Vector3()
+        
+        modelIndices.forEach(index => {
+            const model = this.models[index]
+            centerPosition.add(model.position)
+        })
+        
+        centerPosition.divideScalar(modelIndices.length)
+        return centerPosition
+    }
+    
+    /**
+     * Cleans up the multi-model translation group
+     */
+    cleanupMultiModelGroup() {
+        if (this.multiModelGroup) {
+            this.scene.remove(this.multiModelGroup)
+            this.multiModelGroup = null
+        }
+    }
+    
+    /**
+     * Deactivates translation mode
+     */
+    deactivateTranslationMode() {
+        this.transformControls.detach()
+        this.transformControls.visible = false
+        this.translationMode = false
+        
+        // Clean up multi-model group
+        this.cleanupMultiModelGroup()
+        this.selectedModelIndices = []
+        
+        // Reset transform state flags
+        this.isTransformDragging = false
+        this.transformJustFinished = false
+        
+        // Show the origin gizmo again if there was one
+        if (this.currentGizmo) {
+            this.currentGizmo.visible = true
+        }
+        
+        console.log('Translation mode deactivated')
+    }
+    
+    /**
+     * Updates positions of multiple models during translation
+     */
+    updateMultiModelPositions() {
+        if (this.multiModelGroup && this.selectedModelIndices.length > 1) {
+            const groupPosition = this.multiModelGroup.position
+            const initialPositions = this.multiModelGroup.userData.initialPositions
+            
+            // Update each selected model's position relative to the group
+            this.selectedModelIndices.forEach(index => {
+                if (index < this.models.length && initialPositions[index]) {
+                    const model = this.models[index]
+                    const newPosition = groupPosition.clone().add(initialPositions[index])
+                    model.position.copy(newPosition)
+                }
+            })
+        }
+    }
+    
+    /**
+     * Check if translation mode is currently active
+     * @returns {boolean}
+     */
+    isTranslationModeActive() {
+        return this.translationMode
+    }
+    
+    /**
+     * Check if transform controls are currently being dragged
+     * @returns {boolean}
+     */
+    isTransformControlsDragging() {
+        return this.isTransformDragging
+    }
+    
+    /**
+     * Set callback for transform changes
+     * @param {Function} callback - Function to call when transform changes
+     */
+    setTransformChangeCallback(callback) {
+        this.transformChangeCallback = callback
     }
 }

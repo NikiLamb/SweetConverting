@@ -57,9 +57,8 @@ export class ModelLoaders {
                 try {
                     const glbModel = glb.scene
                     
-                    // Position model based on loaded models count
-                    const xOffset = this.loadedModelsCount * 2  // 2 units spacing between models
-                    glbModel.position.set(xOffset, 0, 0)
+                    // Position model at origin (0,0,0)
+                    glbModel.position.set(0, 0, 0)
                     this.loadedModelsCount++
                     
                     // Add model to scene with metadata
@@ -111,9 +110,8 @@ export class ModelLoaders {
                 // Pivot 90 degrees around the X axis
                 stlModel.rotateX(-Math.PI / 2)
                 
-                // Position model based on loaded models count
-                const xOffset = this.loadedModelsCount * 2  // 2 units spacing between models
-                stlModel.position.set(xOffset, 0, 0)
+                // Position model at origin (0,0,0)
+                stlModel.position.set(0, 0, 0)
                 this.loadedModelsCount++
                 
                 // Add model to scene with metadata
@@ -144,9 +142,8 @@ export class ModelLoaders {
                 const data = reader.result
                 const usdzModel = this.usdzLoader.parse(data)
                 
-                // Position model based on loaded models count
-                const xOffset = this.loadedModelsCount * 2  // 2 units spacing between models
-                usdzModel.position.set(xOffset, 0, 0)
+                // Position model at origin (0,0,0)
+                usdzModel.position.set(0, 0, 0)
                 this.loadedModelsCount++
                 
                 // Add model to scene with metadata

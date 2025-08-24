@@ -223,7 +223,8 @@ export class SceneManager {
                         shiftKey: event.shiftKey
                     })
                 }
-                console.log(`3D Model ${modelIndex} clicked`)
+                console.log(`3D Model ${modelIndex} clicked - Object type: ${clickedObject.type}`, 
+                           clickedObject.isSkinnedMesh ? '(SkinnedMesh)' : '')
             }
         } else {
             // Clicked on empty space - only handle if not in transform mode or just finished
@@ -514,6 +515,9 @@ export class SceneManager {
         requestAnimationFrame(this.animate.bind(this))
         
         this.animationFrame++
+        
+        // Update bounding boxes for skeletal meshes for accurate hit detection
+        this.updateSkeletalMeshBounds()
         
         // Check if gizmo's target model still exists (cleanup check)
         if (this.currentGizmo && this.animationFrame % 60 === 0) { // Check every 60 frames (once per second at 60fps)
@@ -1387,6 +1391,28 @@ export class SceneManager {
             this.transformStartValues = null
             this.isTrackingTransform = false
         }
+    }
+    
+    /**
+     * Updates bounding boxes for skeletal meshes to ensure accurate hit detection
+     * This method is called every frame to handle animated models
+     */
+    updateSkeletalMeshBounds() {
+        // Process all models to find and update skeletal meshes
+        this.models.forEach((model, modelIndex) => {
+            if (model.userData && model.userData.skinnedMeshes) {
+                // Update bounding boxes for all skeletal meshes in this model
+                model.userData.skinnedMeshes.forEach((skinnedMesh) => {
+                    try {
+                        // Recompute bounding box based on current pose
+                        skinnedMesh.computeBoundingBox()
+                        skinnedMesh.computeBoundingSphere()
+                    } catch (error) {
+                        console.warn('Error updating skeletal mesh bounds:', error)
+                    }
+                })
+            }
+        })
     }
     
     /**

@@ -61,11 +61,16 @@ export class ModelLoaders {
                     glbModel.position.set(0, 0, 0)
                     this.loadedModelsCount++
                     
+                    // Handle skeletal meshes for proper hit detection
+                    this.setupSkeletalMeshes(glbModel)
+                    
                     // Add model to scene with metadata
                     const metadata = {
                         filename: file.name,
                         fileType: 'GLB',
-                        originalFile: file
+                        originalFile: file,
+                        hasSkeletalMeshes: this.hasSkeletalMeshes(glbModel),
+                        animations: glb.animations || []
                     }
                     this.addModelWithUndo(glbModel, metadata)
                     this.sceneManager.recenterCameraOnAllModels()
@@ -219,5 +224,50 @@ export class ModelLoaders {
     setUIManager(uiManager) {
         this.uiManager = uiManager
         console.log('UIManager set in ModelLoaders')
+    }
+    
+    /**
+     * Checks if a model contains SkinnedMesh objects
+     * @param {THREE.Object3D} model - The model to check
+     * @returns {boolean} - True if the model contains skeletal meshes
+     */
+    hasSkeletalMeshes(model) {
+        let hasSkinnedMesh = false
+        
+        model.traverse((child) => {
+            if (child.isSkinnedMesh) {
+                hasSkinnedMesh = true
+            }
+        })
+        
+        return hasSkinnedMesh
+    }
+    
+    /**
+     * Sets up skeletal meshes for proper hit detection
+     * @param {THREE.Object3D} model - The model to process
+     */
+    setupSkeletalMeshes(model) {
+        const skinnedMeshes = []
+        
+        // Find all SkinnedMesh objects in the model
+        model.traverse((child) => {
+            if (child.isSkinnedMesh) {
+                // Compute initial bounding box for skeletal meshes
+                child.computeBoundingBox()
+                child.computeBoundingSphere()
+                
+                // Store reference for future updates
+                skinnedMeshes.push(child)
+                
+                console.log('Found SkinnedMesh:', child.name || 'unnamed', 'with skeleton:', !!child.skeleton)
+            }
+        })
+        
+        // Store skeletal meshes reference on the model for later use
+        if (skinnedMeshes.length > 0) {
+            model.userData.skinnedMeshes = skinnedMeshes
+            console.log(`Model contains ${skinnedMeshes.length} skeletal mesh(es)`)
+        }
     }
 }

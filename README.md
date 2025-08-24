@@ -50,7 +50,7 @@ The application follows a modular architecture with clear separation of concerns
 
 #### `js/ModelConverter.js`
 - Manages model format conversion and export
-- Supports exporting to GLB, GLTF, and OBJ formats
+- Supports exporting to GLB, GLTF, OBJ, STL, USDZ and PLY formats
 - Handles multi-model export with automatic file naming
 - Provides format-specific export options and optimizations
 
@@ -148,7 +148,7 @@ The application follows a modular architecture with clear separation of concerns
 
 ### Export and Conversion
 1. Load one or more models
-2. Select an export format from the dropdown (GLB, GLTF, or OBJ)
+2. Select an export format from the dropdown (GLB, GLTF, OBJ, STL, USDZ or PLY)
 3. Click "Create" to download the converted file
 4. Multi-model scenes are exported as combined models with timestamped filenames
 

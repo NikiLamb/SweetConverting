@@ -104,9 +104,6 @@ export class ModelLoaders {
                 
                 const stlModel = new THREE.Mesh(geometry, stlMaterial)
                 
-                // Scale down by 10 the model
-                stlModel.scale.set(0.1, 0.1, 0.1)
-                
                 // Pivot 90 degrees around the X axis
                 stlModel.rotateX(-Math.PI / 2)
                 

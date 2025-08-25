@@ -170,6 +170,10 @@
     background-color: #BA5D00;
 }
 
+.file-type-tag.fbx {
+    background-color: #ba0000;
+}
+
 /* Expandable Model Tree Styles */
 .model-tree-container-item {
     margin-bottom: 2px;

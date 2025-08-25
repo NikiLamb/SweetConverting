@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { STLLoader } from 'three/addons/loaders/STLLoader.js'
 import { USDZLoader } from 'three/addons/loaders/USDZLoader.js'
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js'
 import { LoadModelCommand } from './commands/LoadModelCommand.js'
 
 export class ModelLoaders {
@@ -10,6 +11,7 @@ export class ModelLoaders {
         this.glbLoader = new GLTFLoader()
         this.stlLoader = new STLLoader()
         this.usdzLoader = new USDZLoader()
+        this.fbxLoader = new FBXLoader()
         this.loadedModelsCount = 0  // Track number of models loaded in current session
         this.historyManager = null  // Reference to history manager for undo/redo
         this.uiManager = null       // Reference to UI manager for UI updates
@@ -39,8 +41,11 @@ export class ModelLoaders {
             } else if (fileName.endsWith('.usdz')) {
                 console.log('Loading USDZ file')
                 this.loadUSDZFile(file, resolve, reject)
+            } else if (fileName.endsWith('.fbx')) {
+                console.log('Loading FBX file')
+                this.loadFBXFile(file, resolve, reject)
             } else {
-                const error = 'Unsupported file type. Please select a GLB, STL, or USDZ file.'
+                const error = 'Unsupported file type. Please select a GLB, STL, USDZ, or FBX file.'
                 console.error(error)
                 reject(new Error(error))
             }
@@ -169,8 +174,83 @@ export class ModelLoaders {
         reader.readAsArrayBuffer(file)
     }
     
+    loadFBXFile(file, resolve, reject) {
+        const reader = new FileReader()
+        
+        reader.onload = () => {
+            try {
+                const data = reader.result
+                
+                this.fbxLoader.load(
+                    // Create a blob URL for the FBX data
+                    URL.createObjectURL(new Blob([data])),
+                    (fbxModel) => {
+                        try {
+                            // Position model at origin (0,0,0)
+                            fbxModel.position.set(0, 0, 0)
+                            this.loadedModelsCount++
+                            
+                            // FBX models may need scaling adjustment
+                            // Auto-scale if the model is extremely large or small
+                            const box = new THREE.Box3().setFromObject(fbxModel)
+                            const size = box.getSize(new THREE.Vector3())
+                            const maxDimension = Math.max(size.x, size.y, size.z)
+                            
+                            // If model is too large (>100 units) or too small (<0.1 units), scale it
+                            if (maxDimension > 100) {
+                                const scale = 10 / maxDimension
+                                fbxModel.scale.setScalar(scale)
+                                console.log(`FBX model scaled down by factor: ${scale}`)
+                            } else if (maxDimension < 0.1) {
+                                const scale = 1 / maxDimension
+                                fbxModel.scale.setScalar(scale)
+                                console.log(`FBX model scaled up by factor: ${scale}`)
+                            }
+                            
+                            // Ensure proper materials for FBX models
+                            this.setupFBXMaterials(fbxModel)
+                            
+                            // Add model to scene with metadata
+                            const metadata = {
+                                filename: file.name,
+                                fileType: 'FBX',
+                                originalFile: file,
+                                hasMaterials: this.hasMaterials(fbxModel)
+                            }
+                            this.addModelWithUndo(fbxModel, metadata)
+                            this.sceneManager.recenterCameraOnAllModels()
+                            
+                            console.log('FBX model loaded successfully')
+                            resolve({ model: fbxModel, fileType: 'fbx' })
+                        } catch (error) {
+                            console.error('Error processing FBX model:', error)
+                            reject(error)
+                        }
+                    },
+                    (progress) => {
+                        // Optional: Handle loading progress
+                        if (progress.lengthComputable) {
+                            const percentComplete = (progress.loaded / progress.total) * 100
+                            console.log(`FBX loading progress: ${percentComplete.toFixed(2)}%`)
+                        }
+                    },
+                    (error) => {
+                        console.error('Error loading FBX file:', error)
+                        reject(new Error(`Failed to load FBX file: ${error.message || 'Unknown error'}`))
+                    }
+                )
+            } catch (error) {
+                console.error('Error reading FBX file:', error)
+                reject(error)
+            }
+        }
+        
+        reader.onerror = () => reject(new Error('Failed to read FBX file'))
+        reader.readAsArrayBuffer(file)
+    }
+    
     getSupportedFormats() {
-        return ['.glb', '.stl', '.usdz']
+        return ['.glb', '.stl', '.usdz', '.fbx']
     }
     
     /**
@@ -269,5 +349,75 @@ export class ModelLoaders {
             model.userData.skinnedMeshes = skinnedMeshes
             console.log(`Model contains ${skinnedMeshes.length} skeletal mesh(es)`)
         }
+    }
+    
+    /**
+     * Sets up materials for FBX models to ensure proper rendering
+     * @param {THREE.Object3D} model - The FBX model to process
+     */
+    setupFBXMaterials(model) {
+        model.traverse((child) => {
+            if (child.isMesh) {
+                // Ensure materials are properly configured for FBX models
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        // Handle multiple materials
+                        child.material.forEach(material => {
+                            this.configureFBXMaterial(material)
+                        })
+                    } else {
+                        // Handle single material
+                        this.configureFBXMaterial(child.material)
+                    }
+                } else {
+                    // Create default material if none exists
+                    child.material = new THREE.MeshStandardMaterial({ color: 0x808080 })
+                    console.log('Applied default material to mesh:', child.name || 'unnamed')
+                }
+            }
+        })
+    }
+    
+    /**
+     * Configures a single material for optimal FBX rendering
+     * @param {THREE.Material} material - The material to configure
+     */
+    configureFBXMaterial(material) {
+        // Ensure proper material properties for FBX models
+        if (material.isMeshLambertMaterial || material.isMeshPhongMaterial) {
+            // Convert legacy materials to StandardMaterial for better PBR support
+            const standardMaterial = new THREE.MeshStandardMaterial()
+            
+            // Copy basic properties
+            standardMaterial.color.copy(material.color)
+            standardMaterial.map = material.map
+            standardMaterial.transparent = material.transparent
+            standardMaterial.opacity = material.opacity
+            standardMaterial.side = material.side
+            
+            return standardMaterial
+        } else if (material.isMeshStandardMaterial) {
+            // Material is already standard, just ensure proper settings
+            material.needsUpdate = true
+        }
+        
+        return material
+    }
+    
+    /**
+     * Checks if a model has materials
+     * @param {THREE.Object3D} model - The model to check
+     * @returns {boolean} - True if the model contains materials
+     */
+    hasMaterials(model) {
+        let hasMats = false
+        
+        model.traverse((child) => {
+            if (child.isMesh && child.material) {
+                hasMats = true
+            }
+        })
+        
+        return hasMats
     }
 }

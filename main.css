@@ -121,7 +121,7 @@
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background-color: #818181;
+    background-color: #353535;
     border: 1px solid #989898;
     cursor: pointer;
     display: flex;
@@ -139,7 +139,7 @@
 }
 
 .delete-button:hover {
-    background-color: #6a6a6a;
+    background-color: #832525;
 }
 
 .delete-button svg {

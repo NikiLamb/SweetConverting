@@ -207,8 +207,9 @@ export class ModelLoaders {
                                 console.log(`FBX model scaled up by factor: ${scale}`)
                             }
                             
-                            // Ensure proper materials for FBX models
-                            this.setupFBXMaterials(fbxModel)
+                                        // Handle texture loading and material setup for FBX models
+            this.handleFBXTextures(fbxModel)
+            this.setupFBXMaterials(fbxModel)
                             
                             // Add model to scene with metadata
                             const metadata = {
@@ -352,6 +353,101 @@ export class ModelLoaders {
     }
     
     /**
+     * Handles texture loading and validation for FBX models
+     * @param {THREE.Object3D} model - The FBX model to process
+     */
+    handleFBXTextures(model) {
+        console.log('Processing FBX textures for export compatibility...')
+        
+        model.traverse((child) => {
+            if (child.isMesh && child.material) {
+                const materials = Array.isArray(child.material) ? child.material : [child.material]
+                
+                materials.forEach((material, index) => {
+                    this.validateAndFixTextures(material, child.name || 'unnamed')
+                })
+            }
+        })
+    }
+    
+    /**
+     * Validates and fixes texture issues for a material
+     * @param {THREE.Material} material - The material to validate
+     * @param {string} meshName - Name of the mesh for logging
+     */
+    validateAndFixTextures(material, meshName) {
+        const textureProperties = [
+            'map', 'normalMap', 'bumpMap', 'displacementMap', 
+            'emissiveMap', 'alphaMap', 'roughnessMap', 'metalnessMap'
+        ]
+        
+        textureProperties.forEach(prop => {
+            if (material[prop]) {
+                const texture = material[prop]
+                
+                // Check if texture has valid image data
+                if (!texture.image || texture.image.width === undefined || texture.image.height === undefined) {
+                    console.warn(`Invalid texture ${prop} found on mesh "${meshName}". Removing for export compatibility.`)
+                    material[prop] = null
+                    return
+                }
+                
+                // Check if texture failed to load
+                if (texture.image instanceof HTMLImageElement && !texture.image.complete) {
+                    console.warn(`Unloaded texture ${prop} found on mesh "${meshName}". Creating fallback.`)
+                    this.createFallbackTexture(material, prop)
+                    return
+                }
+                
+                // Check for blob URLs that might cause export issues
+                if (texture.image && texture.image.src && texture.image.src.startsWith('blob:')) {
+                    console.log(`Found blob URL texture ${prop} on mesh "${meshName}". This should work for export.`)
+                }
+                
+                // Ensure texture is ready for export
+                if (texture.image && texture.needsUpdate !== false) {
+                    texture.needsUpdate = true
+                }
+            }
+        })
+    }
+    
+    /**
+     * Creates a fallback texture for failed texture loads
+     * @param {THREE.Material} material - The material to add fallback to
+     * @param {string} textureProperty - The texture property name
+     */
+    createFallbackTexture(material, textureProperty) {
+        // Create a small colored texture as fallback
+        const canvas = document.createElement('canvas')
+        canvas.width = 64
+        canvas.height = 64
+        const ctx = canvas.getContext('2d')
+        
+        // Different colors for different texture types
+        const colorMap = {
+            'map': '#808080',           // Gray for diffuse
+            'normalMap': '#8080FF',     // Blue for normal maps
+            'roughnessMap': '#808080',  // Gray for roughness
+            'metalnessMap': '#000000',  // Black for metalness
+            'emissiveMap': '#000000',   // Black for emissive
+            'alphaMap': '#FFFFFF',      // White for alpha
+            'bumpMap': '#808080',       // Gray for bump
+            'displacementMap': '#808080' // Gray for displacement
+        }
+        
+        ctx.fillStyle = colorMap[textureProperty] || '#808080'
+        ctx.fillRect(0, 0, 64, 64)
+        
+        // Create texture from canvas
+        const fallbackTexture = new THREE.CanvasTexture(canvas)
+        fallbackTexture.needsUpdate = true
+        
+        material[textureProperty] = fallbackTexture
+        console.log(`Created fallback texture for ${textureProperty}`)
+    }
+    
+    /**
      * Sets up materials for FBX models to ensure proper rendering
      * @param {THREE.Object3D} model - The FBX model to process
      */
@@ -362,12 +458,12 @@ export class ModelLoaders {
                 if (child.material) {
                     if (Array.isArray(child.material)) {
                         // Handle multiple materials
-                        child.material.forEach(material => {
-                            this.configureFBXMaterial(material)
+                        child.material = child.material.map(material => {
+                            return this.configureFBXMaterial(material)
                         })
                     } else {
                         // Handle single material
-                        this.configureFBXMaterial(child.material)
+                        child.material = this.configureFBXMaterial(child.material)
                     }
                 } else {
                     // Create default material if none exists
@@ -389,18 +485,74 @@ export class ModelLoaders {
             const standardMaterial = new THREE.MeshStandardMaterial()
             
             // Copy basic properties
+            standardMaterial.name = material.name || 'FBX_Material'
             standardMaterial.color.copy(material.color)
-            standardMaterial.map = material.map
             standardMaterial.transparent = material.transparent
             standardMaterial.opacity = material.opacity
             standardMaterial.side = material.side
+            standardMaterial.visible = material.visible
             
+            // Copy texture maps
+            if (material.map) standardMaterial.map = material.map
+            if (material.normalMap) standardMaterial.normalMap = material.normalMap
+            if (material.bumpMap) standardMaterial.bumpMap = material.bumpMap
+            if (material.displacementMap) standardMaterial.displacementMap = material.displacementMap
+            if (material.emissiveMap) standardMaterial.emissiveMap = material.emissiveMap
+            if (material.alphaMap) standardMaterial.alphaMap = material.alphaMap
+            
+            // Convert emissive properties
+            if (material.emissive) {
+                standardMaterial.emissive.copy(material.emissive)
+            }
+            
+            // Handle Phong-specific properties
+            if (material.isMeshPhongMaterial) {
+                // Convert shininess to roughness (inverse relationship)
+                const roughness = Math.max(0.1, Math.min(1.0, 1.0 - (material.shininess / 100)))
+                standardMaterial.roughness = roughness
+                standardMaterial.metalness = 0.0 // Phong materials are typically non-metallic
+                
+                if (material.specular) {
+                    // Use specular intensity to influence metalness
+                    const specularIntensity = (material.specular.r + material.specular.g + material.specular.b) / 3
+                    standardMaterial.metalness = Math.min(0.5, specularIntensity)
+                }
+            } else {
+                // Lambert material - set reasonable PBR defaults
+                standardMaterial.roughness = 0.8
+                standardMaterial.metalness = 0.0
+            }
+            
+            console.log(`Converted ${material.constructor.name} to MeshStandardMaterial:`, standardMaterial.name)
             return standardMaterial
         } else if (material.isMeshStandardMaterial) {
             // Material is already standard, just ensure proper settings
             material.needsUpdate = true
+            return material
+        } else if (material.isMeshBasicMaterial) {
+            // Convert MeshBasicMaterial to MeshStandardMaterial for better GLTF compatibility
+            const standardMaterial = new THREE.MeshStandardMaterial()
+            
+            standardMaterial.name = material.name || 'Basic_to_Standard'
+            standardMaterial.color.copy(material.color)
+            standardMaterial.transparent = material.transparent
+            standardMaterial.opacity = material.opacity
+            standardMaterial.side = material.side
+            standardMaterial.visible = material.visible
+            
+            if (material.map) standardMaterial.map = material.map
+            if (material.alphaMap) standardMaterial.alphaMap = material.alphaMap
+            
+            // Set reasonable defaults for PBR
+            standardMaterial.roughness = 0.8
+            standardMaterial.metalness = 0.0
+            
+            console.log('Converted MeshBasicMaterial to MeshStandardMaterial:', standardMaterial.name)
+            return standardMaterial
         }
         
+        // For any other material type, return as-is but log a warning
+        console.warn('Unsupported material type for GLTF export:', material.constructor.name)
         return material
     }
     
@@ -419,5 +571,150 @@ export class ModelLoaders {
         })
         
         return hasMats
+    }
+    
+    /**
+     * Creates an export-ready clone of a model, optimized for GLTF export
+     * @param {THREE.Object3D} model - The model to prepare for export
+     * @returns {THREE.Object3D} - A clone optimized for GLTF export
+     */
+    prepareModelForGLTFExport(model) {
+        console.log('Preparing model for GLTF export:', model.name || 'unnamed')
+        
+        // Create a deep clone of the model
+        const exportModel = model.clone(true)
+        
+        // Handle textures first to ensure they're valid for export
+        console.log('Validating textures for GLTF export...')
+        this.handleFBXTextures(exportModel)
+        
+        // Convert all materials to GLTF-compatible formats
+        this.setupFBXMaterials(exportModel)
+        
+        // Additional texture validation after material conversion
+        this.validateExportTextures(exportModel)
+        
+        // Handle special objects that might cause export issues
+        exportModel.traverse((child) => {
+            // Ensure all meshes have proper geometry
+            if (child.isMesh && child.geometry) {
+                // Ensure geometry attributes are up to date
+                if (!child.geometry.attributes.position) {
+                    console.warn('Mesh missing position attribute:', child.name || 'unnamed')
+                    return
+                }
+                
+                // Ensure normals exist for proper lighting
+                if (!child.geometry.attributes.normal) {
+                    child.geometry.computeVertexNormals()
+                    console.log('Computed missing normals for mesh:', child.name || 'unnamed')
+                }
+                
+                // Ensure UVs exist if the material has textures
+                if (!child.geometry.attributes.uv && child.material && this.materialHasTextures(child.material)) {
+                    console.warn('Mesh with textured material missing UV coordinates:', child.name || 'unnamed')
+                    // Create basic UV mapping if missing
+                    this.generateBasicUVs(child.geometry)
+                }
+            }
+            
+            // Handle SkinnedMesh objects
+            if (child.isSkinnedMesh) {
+                // Ensure skeleton is properly bound
+                if (child.skeleton) {
+                    child.skeleton.update()
+                    console.log('Updated skeleton for SkinnedMesh:', child.name || 'unnamed')
+                }
+            }
+            
+            // Remove any objects that shouldn't be exported
+            if (child.isHelper || child.isLight || child.isCamera) {
+                console.log('Removing non-exportable object:', child.constructor.name, child.name || 'unnamed')
+                if (child.parent) {
+                    child.parent.remove(child)
+                }
+            }
+        })
+        
+        console.log('Model prepared for GLTF export successfully')
+        return exportModel
+    }
+    
+    /**
+     * Validates textures for export compatibility after material conversion
+     * @param {THREE.Object3D} model - The model to validate
+     */
+    validateExportTextures(model) {
+        console.log('Final texture validation for export...')
+        
+        model.traverse((child) => {
+            if (child.isMesh && child.material) {
+                const materials = Array.isArray(child.material) ? child.material : [child.material]
+                
+                materials.forEach(material => {
+                    // Ensure all textures have proper properties for GLTF export
+                    const textureProps = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'alphaMap']
+                    
+                    textureProps.forEach(prop => {
+                        if (material[prop]) {
+                            const texture = material[prop]
+                            
+                            // Ensure texture has proper wrapping modes (GLTF prefers repeat)
+                            if (texture.wrapS === undefined) texture.wrapS = THREE.RepeatWrapping
+                            if (texture.wrapT === undefined) texture.wrapT = THREE.RepeatWrapping
+                            
+                            // Ensure texture has proper filtering
+                            if (texture.minFilter === undefined) texture.minFilter = THREE.LinearMipmapLinearFilter
+                            if (texture.magFilter === undefined) texture.magFilter = THREE.LinearFilter
+                            
+                            // Force texture update
+                            texture.needsUpdate = true
+                        }
+                    })
+                })
+            }
+        })
+    }
+    
+    /**
+     * Generates basic UV coordinates for geometry missing UVs
+     * @param {THREE.BufferGeometry} geometry - The geometry to add UVs to
+     */
+    generateBasicUVs(geometry) {
+        if (!geometry.attributes.position) {
+            console.warn('Cannot generate UVs: geometry missing position attribute')
+            return
+        }
+        
+        const positions = geometry.attributes.position.array
+        const uvs = new Float32Array(positions.length / 3 * 2)
+        
+        // Simple planar UV mapping based on X,Z coordinates
+        for (let i = 0; i < positions.length; i += 3) {
+            const x = positions[i]
+            const z = positions[i + 2]
+            
+            // Normalize coordinates to 0-1 range (simple box projection)
+            uvs[(i / 3) * 2] = (x + 1) * 0.5
+            uvs[(i / 3) * 2 + 1] = (z + 1) * 0.5
+        }
+        
+        geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2))
+        console.log('Generated basic UV coordinates for geometry')
+    }
+    
+    /**
+     * Checks if a material has any textures
+     * @param {THREE.Material|Array} material - The material to check
+     * @returns {boolean} - True if the material has textures
+     */
+    materialHasTextures(material) {
+        if (Array.isArray(material)) {
+            return material.some(mat => this.materialHasTextures(mat))
+        }
+        
+        return !!(material.map || material.normalMap || material.bumpMap || 
+                 material.emissiveMap || material.roughnessMap || material.metalnessMap ||
+                 material.alphaMap || material.displacementMap)
     }
 }

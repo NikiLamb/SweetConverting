@@ -51,8 +51,8 @@ export class App {
         // Initialize Model Loaders (depends on Scene Manager)
         this.modelLoaders = new ModelLoaders(this.sceneManager)
         
-        // Initialize Model Converter (independent)
-        this.modelConverter = new ModelConverter()
+        // Initialize Model Converter (depends on Model Loaders for preprocessing)
+        this.modelConverter = new ModelConverter(this.modelLoaders)
         
         // Initialize UI Manager last (depends on all other modules)
         this.uiManager = new UIManager(
@@ -168,9 +168,32 @@ export class App {
         }
         
         try {
-            await this.modelConverter.exportModel(allModels, format)
+            // Use the UI manager's export flow which includes modal and progress tracking
+            if (this.uiManager && this.uiManager.modalManager) {
+                this.uiManager.modalManager.showExportModal(format)
+                
+                const progressCallback = (message) => {
+                    this.uiManager.modalManager.updateProgress(message)
+                }
+                
+                const result = await this.modelConverter.exportModel(allModels, format, progressCallback)
+                this.uiManager.modalManager.showExportSuccess(format, result.filename)
+                return result
+            } else {
+                // Fallback to direct export without UI
+                return await this.modelConverter.exportModel(allModels, format)
+            }
         } catch (error) {
             console.error('Error exporting models:', error)
+            
+            if (this.uiManager && this.uiManager.modalManager) {
+                const errorMessage = error.message || 'Unknown export error'
+                const errorParts = errorMessage.split('\nHint:')
+                const mainError = errorParts[0]
+                const hint = errorParts[1] ? `Hint: ${errorParts[1]}` : ''
+                this.uiManager.modalManager.showExportError(mainError, hint)
+            }
+            
             throw error
         }
     }

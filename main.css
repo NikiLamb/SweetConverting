@@ -334,13 +334,161 @@
     border-color: #ff4444;
 }
 
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: modalFadeIn 0.3s ease;
+}
+
+.modal-content {
+    background-color: #333;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    min-width: 400px;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: modalSlideIn 0.3s ease;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 20px 0 20px;
+    border-bottom: 1px solid #555;
+    margin-bottom: 20px;
+}
+
+.modal-header h3 {
+    color: #F5F5F5;
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.modal-close-btn {
+    background: none;
+    border: none;
+    color: #F5F5F5;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
+}
+
+.modal-close-btn:hover:not(:disabled) {
+    background-color: #555;
+}
+
+.modal-close-btn:disabled {
+    color: #666;
+    cursor: not-allowed;
+}
+
+.modal-body {
+    padding: 0 20px 20px 20px;
+}
+
+.progress-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 0;
+}
+
+.progress-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #555;
+    border-top: 3px solid #0066cc;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+#progress-text {
+    color: #F5F5F5;
+    font-size: 16px;
+}
+
+.error-section {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 20px;
+    background-color: #2a1a1a;
+    border: 1px solid #aa4444;
+    border-radius: 6px;
+    margin-top: 10px;
+}
+
+.error-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.error-content {
+    flex: 1;
+}
+
+#error-message {
+    color: #ff6666;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+#error-details {
+    color: #cccccc;
+    font-size: 14px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes modalSlideIn {
+    from { 
+        transform: translateY(-30px);
+        opacity: 0;
+    }
+    to { 
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 /* Toast Notification Styles */
 .toast-container {
     position: fixed;
     bottom: 20px;
-    left: 20px;
+    right: 20px;
     z-index: 10000;
     pointer-events: none;
+    max-width: 400px;
 }
 
 .toast {
@@ -350,12 +498,12 @@
     border-radius: 6px;
     margin-bottom: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    transform: translateX(-100%);
+    transform: translateX(100%);
     opacity: 0;
     transition: transform 0.3s ease, opacity 0.3s ease;
-    max-width: 300px;
     word-wrap: break-word;
     border-left: 4px solid #555;
+    pointer-events: auto;
 }
 
 .toast.toast-show {
@@ -364,23 +512,33 @@
 }
 
 .toast.toast-hide {
-    transform: translateX(-100%);
+    transform: translateX(100%);
     opacity: 0;
 }
 
 .toast.toast-error {
-    background-color: #ff4444;
-    border-left-color: #ff0000;
+    background-color: #aa3333;
+    border-left-color: #ff4444;
 }
 
 .toast.toast-success {
-    background-color: #44aa44;
-    border-left-color: #00aa00;
+    background-color: #338833;
+    border-left-color: #44aa44;
 }
 
 .toast.toast-info {
-    background-color: #4488cc;
-    border-left-color: #0066cc;
+    background-color: #335588;
+    border-left-color: #4488cc;
+}
+
+.toast-header {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.toast-body {
+    font-size: 14px;
+    opacity: 0.9;
 }
 
 /* Toolbar Styles */

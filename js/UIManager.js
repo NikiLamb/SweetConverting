@@ -1,5 +1,6 @@
 import { TransformCommand } from './commands/TransformCommand.js'
 import { RemoveModelCommand } from './commands/RemoveModelCommand.js'
+import { ModalManager } from './ModalManager.js'
 
 export class UIManager {
     constructor(sceneManager, modelLoaders, modelConverter, historyManager) {
@@ -7,6 +8,9 @@ export class UIManager {
         this.modelLoaders = modelLoaders
         this.modelConverter = modelConverter
         this.historyManager = historyManager
+        
+        // Initialize modal manager
+        this.modalManager = new ModalManager()
         
         // Current state
         this.currentLoadedFileType = null
@@ -380,17 +384,42 @@ export class UIManager {
         // Get all models from the scene for export
         const allModels = this.sceneManager.getAllModelsAsGroup()
         if (!allModels) {
+            this.modalManager.showErrorToast('Export Error', 'No models loaded to export')
             return
         }
         
+        // Disable convert button during export
         this.elements.convertButton.disabled = true
-        const modelCount = this.sceneManager.getModels().length
+        
+        // Show export modal
+        this.modalManager.showExportModal(selectedFormat)
         
         try {
-            await this.modelConverter.exportModel(allModels, selectedFormat)
+            // Create progress callback for the modal
+            const progressCallback = (message) => {
+                this.modalManager.updateProgress(message)
+            }
+            
+            // Start export with progress tracking
+            const result = await this.modelConverter.exportModel(allModels, selectedFormat, progressCallback)
+            
+            // Show success notification and hide modal
+            this.modalManager.showExportSuccess(selectedFormat, result.filename)
+            
         } catch (error) {
             console.error('Export error:', error)
+            
+            // Parse error message for user-friendly display
+            const errorMessage = error.message || 'Unknown export error'
+            const errorParts = errorMessage.split('\nHint:')
+            const mainError = errorParts[0]
+            const hint = errorParts[1] ? `Hint: ${errorParts[1]}` : ''
+            
+            // Show error in modal
+            this.modalManager.showExportError(mainError, hint)
+            
         } finally {
+            // Re-enable convert button
             this.elements.convertButton.disabled = false
         }
     }

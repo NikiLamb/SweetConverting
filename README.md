@@ -211,6 +211,14 @@ console.log('Can redo:', historyManager.canRedo());
 
 *Note: PLY, STL, and USDZ export functionality is currently being refined and may not be available in all scenarios.*
 
+###Import/export support matrix
+| Import/Export | GLB     | GLTF    | STL | USDZ | PLY | OBJ |
+|---------------|---------|---------|-----|------|-----|-----|
+| GLB           | Yes     | Yes     | Yes | Yes  | Yes | Yes |
+| STL           | Yes     | Yes     | Yes | Yes  | Yes | Yes |
+| USDZ          | Yes     | Yes     | Yes | Yes  | Yes | Yes |
+| FBX           | Partial | Partial | Yes | Yes  | Yes | Yes |
+
 ## Dependencies
 
 - **[Three.js v0.158.0](https://threejs.org/)** - 3D graphics library loaded via CDN

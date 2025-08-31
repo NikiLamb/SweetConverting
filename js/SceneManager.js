@@ -123,7 +123,68 @@ export class SceneManager {
         this.controls.minDistance = 0.1
         this.controls.maxDistance = 200
         this.controls.target.set(0, 0, 0)
-        this.controls.update()
+        
+        // Configure mouse buttons for improved camera control
+        // LEFT: Rotate (orbit) - default behavior
+        // MIDDLE: Pan (translate) - changed from zoom for middle mouse translation
+        // RIGHT: Keep as Pan for compatibility, wheel handles zoom
+        this.controls.mouseButtons = {
+            LEFT: THREE.MOUSE.ROTATE,
+            MIDDLE: THREE.MOUSE.PAN,
+            RIGHT: THREE.MOUSE.PAN
+        }
+        
+        // Configure touch controls for trackpad gestures
+        // ONE finger: Rotate (orbit)
+        // TWO fingers: Dolly (pinch zoom) + Pan (two-finger pan)
+        this.controls.touches = {
+            ONE: THREE.TOUCH.ROTATE,
+            TWO: THREE.TOUCH.DOLLY_PAN
+        }
+        
+        // Enable all control types for comprehensive input support
+        this.controls.enableRotate = true
+        this.controls.enableZoom = true
+        this.controls.enablePan = true
+        this.controls.enableDamping = true
+        this.controls.dampingFactor = 0.05
+        
+        // Configure zoom and pan speeds for better trackpad experience
+        this.controls.zoomSpeed = 1.0
+        this.controls.panSpeed = 1.0
+        this.controls.rotateSpeed = 1.0
+        
+        // Optimize for trackpad usage
+        this.controls.screenSpacePanning = true // Pan in screen space for more intuitive trackpad behavior
+        
+        // Add error handling for unsupported input methods
+        try {
+            // Test if the browser supports the required mouse and touch events
+            if (!this.renderer.domElement.addEventListener) {
+                console.warn('SceneManager: Limited input support detected, some camera controls may not work')
+            }
+            
+            // Verify OrbitControls is properly initialized
+            if (!this.controls || typeof this.controls.update !== 'function') {
+                throw new Error('OrbitControls initialization failed')
+            }
+            
+            this.controls.update()
+            console.log('SceneManager: Camera controls initialized successfully')
+            console.log('  - Mouse buttons:', this.controls.mouseButtons)
+            console.log('  - Touch controls:', this.controls.touches)
+            console.log('  - Trackpad optimizations enabled')
+            
+        } catch (error) {
+            console.error('SceneManager: Error initializing camera controls:', error)
+            // Fallback to basic controls if advanced configuration fails
+            this.controls = new OrbitControls(this.camera, this.renderer.domElement)
+            this.controls.update()
+            console.warn('SceneManager: Using fallback camera controls')
+        }
+        
+        // Add Linux-specific trackpad gesture support
+        this.setupLinuxTrackpadSupport()
         
         // Add event listeners for camera changes to update gizmo immediately
         this.controls.addEventListener('change', () => {
@@ -175,6 +236,250 @@ export class SceneManager {
                 }, 100) // 100ms delay to prevent accidental selection
             }
         })
+    }
+    
+    /**
+     * Reconfigure camera controls with custom mouse and touch mappings
+     * @param {Object} options - Configuration options
+     * @param {Object} options.mouseButtons - Mouse button mappings (LEFT, MIDDLE, RIGHT)
+     * @param {Object} options.touches - Touch gesture mappings (ONE, TWO)
+     * @param {Object} options.settings - Additional control settings
+     */
+    reconfigureCameraControls(options = {}) {
+        try {
+            if (options.mouseButtons) {
+                this.controls.mouseButtons = { ...this.controls.mouseButtons, ...options.mouseButtons }
+                console.log('SceneManager: Updated mouse button configuration:', this.controls.mouseButtons)
+            }
+            
+            if (options.touches) {
+                this.controls.touches = { ...this.controls.touches, ...options.touches }
+                console.log('SceneManager: Updated touch configuration:', this.controls.touches)
+            }
+            
+            if (options.settings) {
+                Object.assign(this.controls, options.settings)
+                console.log('SceneManager: Applied additional control settings')
+            }
+            
+            this.controls.update()
+            return true
+            
+        } catch (error) {
+            console.error('SceneManager: Error reconfiguring camera controls:', error)
+            return false
+        }
+    }
+    
+    /**
+     * Setup Linux-specific trackpad gesture support
+     * Adds additional event listeners for better gesture detection on Linux systems
+     */
+    setupLinuxTrackpadSupport() {
+        const canvas = this.renderer.domElement
+        let isTrackpadGesture = false
+        let lastWheelTime = 0
+        let wheelDeltaY = 0
+        let isCtrlPressed = false
+        
+        // Track for trackpad gestures vs mouse wheel
+        const wheelHandler = (event) => {
+            const now = Date.now()
+            const timeDelta = now - lastWheelTime
+            lastWheelTime = now
+            
+            // Detect if this is likely a trackpad gesture
+            // Trackpad events come in rapid succession with smaller delta values
+            if (timeDelta < 50 && Math.abs(event.deltaY) < 50) {
+                isTrackpadGesture = true
+            } else if (timeDelta > 100) {
+                isTrackpadGesture = false
+            }
+            
+            // Handle Ctrl+Wheel for zoom on Linux trackpads
+            if (event.ctrlKey) {
+                event.preventDefault()
+                isCtrlPressed = true
+                
+                // Use the existing zoom functionality
+                const zoomScale = event.deltaY > 0 ? 1.1 : 0.9
+                const camera = this.camera
+                
+                if (camera.isPerspectiveCamera) {
+                    const direction = new THREE.Vector3()
+                    camera.getWorldDirection(direction)
+                    direction.multiplyScalar(event.deltaY > 0 ? 1 : -1)
+                    camera.position.add(direction)
+                } else if (camera.isOrthographicCamera) {
+                    camera.zoom *= zoomScale
+                    camera.updateProjectionMatrix()
+                }
+                
+                this.controls.update()
+                return
+            }
+            
+            // Handle two-finger scroll as pan on Linux trackpads
+            if (isTrackpadGesture && !event.ctrlKey && Math.abs(event.deltaX) > 0) {
+                event.preventDefault()
+                
+                // Convert wheel delta to pan movement
+                const panSpeed = this.controls.panSpeed * 0.002
+                const deltaX = event.deltaX * panSpeed
+                const deltaY = event.deltaY * panSpeed
+                
+                // Use OrbitControls internal pan function if available
+                if (this.controls.object.isPerspectiveCamera) {
+                    const position = this.controls.object.position
+                    const offset = position.clone().sub(this.controls.target)
+                    const targetDistance = offset.length()
+                    
+                    // Apply the pan
+                    const element = this.renderer.domElement
+                    targetDistance *= Math.tan((this.controls.object.fov / 2) * Math.PI / 180.0)
+                    
+                    const up = new THREE.Vector3(0, 1, 0)
+                    const right = new THREE.Vector3()
+                    right.crossVectors(this.controls.object.getWorldDirection(new THREE.Vector3()), up).normalize()
+                    up.crossVectors(right, this.controls.object.getWorldDirection(new THREE.Vector3())).normalize()
+                    
+                    const panOffset = new THREE.Vector3()
+                    panOffset.add(right.clone().multiplyScalar(-deltaX * targetDistance / element.clientHeight))
+                    panOffset.add(up.clone().multiplyScalar(deltaY * targetDistance / element.clientHeight))
+                    
+                    this.controls.target.add(panOffset)
+                    this.controls.object.position.add(panOffset)
+                    this.controls.update()
+                }
+            }
+        }
+        
+        // Add enhanced wheel event listener for Linux trackpad support
+        canvas.addEventListener('wheel', wheelHandler, { passive: false })
+        
+        // Track Ctrl key state for zoom gestures
+        window.addEventListener('keydown', (event) => {
+            if (event.code === 'ControlLeft' || event.code === 'ControlRight') {
+                isCtrlPressed = true
+            }
+        })
+        
+        window.addEventListener('keyup', (event) => {
+            if (event.code === 'ControlLeft' || event.code === 'ControlRight') {
+                isCtrlPressed = false
+            }
+        })
+        
+        // Detect Linux environment and log appropriate guidance
+        const isLinux = navigator.platform.toLowerCase().includes('linux') || 
+                        navigator.userAgent.toLowerCase().includes('linux')
+        
+        if (isLinux) {
+            console.log('SceneManager: Linux detected - Enhanced trackpad support enabled')
+            console.log('  - Ctrl+Scroll: Zoom in/out')
+            console.log('  - Two-finger scroll: Pan camera')
+            console.log('  - Alt+Arrow keys: Pan camera')
+            console.log('  - Alt+Shift+Up/Down: Zoom in/out')
+            console.log('  - For best experience, ensure libinput gestures are configured')
+            console.log('  - Consider enabling Wayland and MOZ_ENABLE_WAYLAND=1 for Firefox')
+        }
+        
+        // Add keyboard shortcuts for camera control (Linux fallback)
+        const keydownHandler = (event) => {
+            if (!this.controls.enabled) return
+            
+            // Use Alt key combinations for camera control
+            if (event.altKey) {
+                event.preventDefault()
+                const panSpeed = 0.1
+                const rotateSpeed = 0.02
+                const zoomSpeed = 0.1
+                
+                switch (event.code) {
+                    case 'ArrowLeft':
+                        // Pan left
+                        this.panCamera(-panSpeed, 0)
+                        break
+                    case 'ArrowRight':
+                        // Pan right
+                        this.panCamera(panSpeed, 0)
+                        break
+                    case 'ArrowUp':
+                        // Pan up or zoom in if Shift is held
+                        if (event.shiftKey) {
+                            this.zoomCamera(-zoomSpeed)
+                        } else {
+                            this.panCamera(0, panSpeed)
+                        }
+                        break
+                    case 'ArrowDown':
+                        // Pan down or zoom out if Shift is held
+                        if (event.shiftKey) {
+                            this.zoomCamera(zoomSpeed)
+                        } else {
+                            this.panCamera(0, -panSpeed)
+                        }
+                        break
+                }
+            }
+        }
+        
+        window.addEventListener('keydown', keydownHandler)
+        
+        // Store cleanup function for disposal
+        this.linuxTrackpadCleanup = () => {
+            canvas.removeEventListener('wheel', wheelHandler)
+            window.removeEventListener('keydown', keydownHandler)
+        }
+    }
+    
+    /**
+     * Pan the camera by specified amounts
+     * @param {number} deltaX - Horizontal pan amount
+     * @param {number} deltaY - Vertical pan amount
+     */
+    panCamera(deltaX, deltaY) {
+        if (this.controls && this.controls.object.isPerspectiveCamera) {
+            const position = this.controls.object.position
+            const offset = position.clone().sub(this.controls.target)
+            const targetDistance = offset.length()
+            
+            // Apply the pan
+            const element = this.renderer.domElement
+            targetDistance *= Math.tan((this.controls.object.fov / 2) * Math.PI / 180.0)
+            
+            const up = new THREE.Vector3(0, 1, 0)
+            const right = new THREE.Vector3()
+            right.crossVectors(this.controls.object.getWorldDirection(new THREE.Vector3()), up).normalize()
+            up.crossVectors(right, this.controls.object.getWorldDirection(new THREE.Vector3())).normalize()
+            
+            const panOffset = new THREE.Vector3()
+            panOffset.add(right.clone().multiplyScalar(deltaX * targetDistance / element.clientHeight))
+            panOffset.add(up.clone().multiplyScalar(deltaY * targetDistance / element.clientHeight))
+            
+            this.controls.target.add(panOffset)
+            this.controls.object.position.add(panOffset)
+            this.controls.update()
+        }
+    }
+    
+    /**
+     * Zoom the camera by specified amount
+     * @param {number} delta - Zoom amount (positive = zoom out, negative = zoom in)
+     */
+    zoomCamera(delta) {
+        if (this.controls && this.controls.object.isPerspectiveCamera) {
+            const direction = new THREE.Vector3()
+            this.controls.object.getWorldDirection(direction)
+            direction.multiplyScalar(delta)
+            this.controls.object.position.add(direction)
+            this.controls.update()
+        } else if (this.controls && this.controls.object.isOrthographicCamera) {
+            const zoomScale = delta > 0 ? 0.9 : 1.1
+            this.controls.object.zoom *= zoomScale
+            this.controls.object.updateProjectionMatrix()
+            this.controls.update()
+        }
     }
     
     setupEventListeners() {
@@ -421,6 +726,11 @@ export class SceneManager {
     }
     
     dispose() {
+        // Clean up Linux trackpad event listeners
+        if (this.linuxTrackpadCleanup) {
+            this.linuxTrackpadCleanup()
+        }
+        
         // No special disposal needed for GridHelper since it uses standard Three.js objects
     }
     

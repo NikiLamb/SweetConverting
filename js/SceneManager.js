@@ -33,6 +33,12 @@ export class SceneManager {
         this.mouse = new THREE.Vector2()
         this.onModelClickCallback = null // Callback for when a model is clicked
         
+        // Mouse drag detection for preventing selection after camera operations
+        this.mouseDownPosition = new THREE.Vector2()
+        this.mouseUpPosition = new THREE.Vector2()
+        this.isDragging = false
+        this.dragThreshold = 5 // pixels - minimum movement to consider it a drag
+        
         this.initScene()
         this.initCamera()
         this.initRenderer()
@@ -180,8 +186,33 @@ export class SceneManager {
     setupEventListeners() {
         window.addEventListener('resize', this.onWindowResize.bind(this), false)
         
-        // Add mouse click event for 3D object selection
+        // Add mouse events for 3D object selection and drag detection
+        this.canvas.addEventListener('mousedown', this.onCanvasMouseDown.bind(this), false)
+        this.canvas.addEventListener('mouseup', this.onCanvasMouseUp.bind(this), false)
         this.canvas.addEventListener('click', this.onCanvasClick.bind(this), false)
+    }
+    
+    /**
+     * Handles mouse down events to track drag operations
+     * @param {MouseEvent} event - The mouse down event
+     */
+    onCanvasMouseDown(event) {
+        const rect = this.canvas.getBoundingClientRect()
+        this.mouseDownPosition.set(event.clientX - rect.left, event.clientY - rect.top)
+        this.isDragging = false
+    }
+    
+    /**
+     * Handles mouse up events to detect if a drag operation occurred
+     * @param {MouseEvent} event - The mouse up event
+     */
+    onCanvasMouseUp(event) {
+        const rect = this.canvas.getBoundingClientRect()
+        this.mouseUpPosition.set(event.clientX - rect.left, event.clientY - rect.top)
+        
+        // Calculate the distance moved during the mouse operation
+        const distance = this.mouseDownPosition.distanceTo(this.mouseUpPosition)
+        this.isDragging = distance > this.dragThreshold
     }
     
     /**
@@ -195,6 +226,12 @@ export class SceneManager {
         // Skip selection if transform controls are being dragged or just finished
         if (this.isTransformDragging || this.transformJustFinished) {
             console.log('Skipping selection due to transform operation')
+            return
+        }
+        
+        // Skip selection if the mouse was dragged (camera orbit/pan operation)
+        if (this.isDragging) {
+            console.log('Skipping selection due to drag operation (camera movement)')
             return
         }
         

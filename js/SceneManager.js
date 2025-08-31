@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { TransformControls } from 'three/addons/controls/TransformControls.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { MOUSE } from 'three'
 import { TransformCommand } from './commands/TransformCommand.js'
 
 export class SceneManager {
@@ -129,6 +130,14 @@ export class SceneManager {
         this.controls.minDistance = 0.1
         this.controls.maxDistance = 200
         this.controls.target.set(0, 0, 0)
+        
+        // Configure mouse controls: Left=Rotate, Middle=Pan, Right=Pan
+        this.controls.mouseButtons = {
+            LEFT: MOUSE.ROTATE,
+            MIDDLE: MOUSE.PAN,
+            RIGHT: MOUSE.PAN
+        }
+        
         this.controls.update()
         
         // Add event listeners for camera changes to update gizmo immediately

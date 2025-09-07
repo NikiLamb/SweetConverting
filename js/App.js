@@ -1,5 +1,5 @@
 import { SceneManager } from './SceneManager.js'
-import { ModelLoaders } from './ModelLoaders.js'
+import { LoaderManager } from './loaders/LoaderManager.js'
 import { ModelConverter } from './ModelConverter.js'
 import { UIManager } from './UIManager.js'
 import { HistoryManager } from './HistoryManager.js'
@@ -8,7 +8,7 @@ export class App {
     constructor() {
         this.canvas = null
         this.sceneManager = null
-        this.modelLoaders = null
+        this.loaderManager = null
         this.modelConverter = null
         this.uiManager = null
         this.historyManager = null
@@ -48,16 +48,16 @@ export class App {
         // Initialize Scene Manager (core Three.js functionality)
         this.sceneManager = new SceneManager(this.canvas)
         
-        // Initialize Model Loaders (depends on Scene Manager)
-        this.modelLoaders = new ModelLoaders(this.sceneManager)
+        // Initialize Loader Manager (depends on Scene Manager)
+        this.loaderManager = new LoaderManager(this.sceneManager)
         
-        // Initialize Model Converter (depends on Model Loaders for preprocessing)
-        this.modelConverter = new ModelConverter(this.modelLoaders)
+        // Initialize Model Converter (depends on Loader Manager for preprocessing)
+        this.modelConverter = new ModelConverter(this.loaderManager)
         
         // Initialize UI Manager last (depends on all other modules)
         this.uiManager = new UIManager(
             this.sceneManager,
-            this.modelLoaders,
+            this.loaderManager,
             this.modelConverter,
             this.historyManager
         )
@@ -72,10 +72,10 @@ export class App {
     setupModuleDependencies() {
         // Set up history manager references in other modules
         this.sceneManager.setHistoryManager(this.historyManager)
-        this.modelLoaders.setHistoryManager(this.historyManager)
+        this.loaderManager.setHistoryManager(this.historyManager)
         
-        // Set up UI manager reference in model loaders for UI updates
-        this.modelLoaders.setUIManager(this.uiManager)
+        // Set up UI manager reference in loader manager for UI updates
+        this.loaderManager.setUIManager(this.uiManager)
         
         console.log('Module dependencies configured')
     }
@@ -115,8 +115,8 @@ export class App {
         return this.sceneManager
     }
     
-    getModelLoaders() {
-        return this.modelLoaders
+    getLoaderManager() {
+        return this.loaderManager
     }
     
     getModelConverter() {
@@ -133,12 +133,12 @@ export class App {
     
     // Method to load a model programmatically
     async loadModel(file) {
-        if (!this.modelLoaders) {
-            throw new Error('Model loaders not initialized')
+        if (!this.loaderManager) {
+            throw new Error('Loader manager not initialized')
         }
         
         try {
-            const result = await this.modelLoaders.loadModelFile(file)
+            const result = await this.loaderManager.loadModelFile(file)
             return result
         } catch (error) {
             console.error('Error loading model:', error)
@@ -201,7 +201,7 @@ export class App {
     // Method to get application status
     getStatus() {
         return {
-            initialized: !!(this.sceneManager && this.modelLoaders && this.modelConverter && this.uiManager),
+            initialized: !!(this.sceneManager && this.loaderManager && this.modelConverter && this.uiManager),
             hasModel: !!this.uiManager?.getCurrentModel(),
             currentFileType: this.uiManager?.getCurrentFileType(),
             modelsCount: this.sceneManager?.getModels().length || 0

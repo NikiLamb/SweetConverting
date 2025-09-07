@@ -31,7 +31,7 @@ export class ModelConverter {
     
     /**
      * Set the model loaders reference for preprocessing functionality
-     * @param {ModelLoaders} modelLoaders - The model loaders instance
+     * @param {LoaderManager} modelLoaders - The loader manager instance
      */
     setModelLoaders(modelLoaders) {
         this.modelLoaders = modelLoaders
@@ -84,7 +84,7 @@ export class ModelConverter {
                 console.log(`Starting ${format.toUpperCase()} export for model:`, model.name || model.type)
                 if (progressCallback) progressCallback(`Starting ${format.toUpperCase()} export...`)
                 
-                // Preprocess the model for GLTF export if ModelLoaders is available
+                // Preprocess the model for GLTF export if LoaderManager is available
                 let exportModel = model
                 if (this.modelLoaders && this.modelLoaders.prepareModelForGLTFExport) {
                     console.log('Preprocessing model for GLTF export...')
@@ -92,7 +92,7 @@ export class ModelConverter {
                     exportModel = this.modelLoaders.prepareModelForGLTFExport(model)
                     if (progressCallback) progressCallback('Validating textures and materials...')
                 } else {
-                    console.warn('ModelLoaders not available for preprocessing. Using original model.')
+                    console.warn('LoaderManager not available for preprocessing. Using original model.')
                     if (progressCallback) progressCallback('Validating model...')
                     // Basic material check without preprocessing
                     this.validateModelForGLTFExport(exportModel)

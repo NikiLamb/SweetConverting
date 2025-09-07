@@ -3,9 +3,9 @@ import { RemoveModelCommand } from './commands/RemoveModelCommand.js'
 import { ModalManager } from './ModalManager.js'
 
 export class UIManager {
-    constructor(sceneManager, modelLoaders, modelConverter, historyManager) {
+    constructor(sceneManager, loaderManager, modelConverter, historyManager) {
         this.sceneManager = sceneManager
-        this.modelLoaders = modelLoaders
+        this.loaderManager = loaderManager
         this.modelConverter = modelConverter
         this.historyManager = historyManager
         
@@ -254,7 +254,7 @@ export class UIManager {
                     this.updateLoadingMessage(`Loading ${i + 1} of ${files.length}: ${file.name}`)
                     
                     console.log(`Loading file: ${file.name}`)
-                    const result = await this.modelLoaders.loadModelFile(file)
+                    const result = await this.loaderManager.loadModelFile(file)
                     results.successful++
                     
                     // Update state for the last loaded model
@@ -345,7 +345,7 @@ export class UIManager {
     
     handleClearModels() {
         this.sceneManager.clearModels()
-        this.modelLoaders.resetLoadedModelsCount()  // Reset position counter
+        this.loaderManager.resetLoadedModelsCount()  // Reset position counter
         this.currentModel = null
         this.currentLoadedFileType = null
         

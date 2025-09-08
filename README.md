@@ -218,6 +218,7 @@ console.log('Can redo:', historyManager.canRedo());
 | STL           | Yes     | Yes     | Yes | Yes  | Yes | Yes |
 | USDZ          | Yes     | Yes     | Yes | Yes  | Yes | Yes |
 | FBX           | Partial | Partial | Yes | Yes  | Yes | Yes |
+| IFC           | Yes     | Yes     | Yes | Yes  | Yes | Yes |
 
 ## Dependencies
 

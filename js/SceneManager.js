@@ -489,18 +489,80 @@ export class SceneManager {
         }
         
         if (this.models.length === 1) {
-            return this.models[0]
+            // For single model, create a clone with original materials restored
+            return this.cloneModelWithOriginalMaterials(this.models[0])
         }
         
-        // Create a group containing all models
+        // Create a group containing all models with original materials
         const group = new THREE.Group()
         this.models.forEach(model => {
-            // Clone the model to avoid removing it from the scene
-            const modelClone = model.clone()
+            // Clone the model with original materials restored
+            const modelClone = this.cloneModelWithOriginalMaterials(model)
             group.add(modelClone)
         })
         
         return group
+    }
+
+    /**
+     * Creates a deep clone of a model with original materials restored
+     * This ensures that export doesn't include selection highlighting
+     * @param {THREE.Object3D} model - The model to clone
+     * @returns {THREE.Object3D} - The cloned model with original materials
+     */
+    cloneModelWithOriginalMaterials(model) {
+        // Clone the model structure
+        const modelClone = model.clone()
+        
+        // Restore original materials in the clone
+        modelClone.traverse((child) => {
+            if (child.isMesh && child.material) {
+                // Find the corresponding child in the original model to get stored materials
+                const originalChild = this.findCorrespondingChild(model, child)
+                if (originalChild && originalChild.userData) {
+                    if (originalChild.userData.originalMaterials) {
+                        // Handle array of materials
+                        child.material = originalChild.userData.originalMaterials.map(mat => mat.clone())
+                    } else if (originalChild.userData.originalMaterial) {
+                        // Handle single material
+                        child.material = originalChild.userData.originalMaterial.clone()
+                    }
+                    // If no stored original material, keep the current material (it wasn't highlighted)
+                }
+            }
+        })
+        
+        return modelClone
+    }
+
+    /**
+     * Finds the corresponding child in the original model hierarchy
+     * @param {THREE.Object3D} originalModel - The original model
+     * @param {THREE.Object3D} clonedChild - The child from the cloned model
+     * @returns {THREE.Object3D|null} - The corresponding child in the original model
+     */
+    findCorrespondingChild(originalModel, clonedChild) {
+        // Build path from root to cloned child
+        const path = []
+        let current = clonedChild
+        while (current.parent && current !== current.parent) {
+            const parentChildren = current.parent.children
+            const index = parentChildren.indexOf(current)
+            path.unshift(index)
+            current = current.parent
+        }
+        
+        // Follow the same path in the original model
+        let originalChild = originalModel
+        for (const index of path) {
+            if (originalChild.children && originalChild.children[index]) {
+                originalChild = originalChild.children[index]
+            } else {
+                return null
+            }
+        }
+        
+        return originalChild
     }
     
     recenterCameraOnModel(model) {

@@ -3,6 +3,7 @@ import { TransformControls } from 'three/addons/controls/TransformControls.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { MOUSE } from 'three'
 import { TransformCommand } from './commands/TransformCommand.js'
+import { NavigationGizmo } from './NavigationGizmo.js'
 
 export class SceneManager {
     constructor(canvas) {
@@ -40,12 +41,17 @@ export class SceneManager {
         this.isDragging = false
         this.dragThreshold = 5 // pixels - minimum movement to consider it a drag
         
+        // Navigation gizmo for camera orientation
+        this.navigationGizmo = null
+        this.lastTime = 0 // For delta time calculation
+        
         this.initScene()
         this.initCamera()
         this.initRenderer()
         this.initLighting()
         this.initGrid()
         this.initControls()
+        this.initNavigationGizmo()
         this.setupEventListeners()
         
         console.log('Starting animation loop...')
@@ -190,6 +196,16 @@ export class SceneManager {
                 }, 100) // 100ms delay to prevent accidental selection
             }
         })
+    }
+    
+    initNavigationGizmo() {
+        // Initialize the navigation gizmo
+        this.navigationGizmo = new NavigationGizmo(this.camera, this.canvas, this.controls)
+        
+        // Set the center point for rotation (initially at origin)
+        this.navigationGizmo.setCenter(new THREE.Vector3(0, 0, 0))
+        
+        console.log('Navigation gizmo initialized')
     }
     
     setupEventListeners() {
@@ -467,6 +483,12 @@ export class SceneManager {
     }
     
     dispose() {
+        // Dispose of navigation gizmo
+        if (this.navigationGizmo) {
+            this.navigationGizmo.dispose()
+            this.navigationGizmo = null
+        }
+        
         // No special disposal needed for GridHelper since it uses standard Three.js objects
     }
     
@@ -586,6 +608,11 @@ export class SceneManager {
         // Update controls target
         this.controls.target.copy(center)
         this.controls.update()
+        
+        // Update navigation gizmo center
+        if (this.navigationGizmo) {
+            this.navigationGizmo.setCenter(center)
+        }
     }
     
     recenterCameraOnAllModels() {
@@ -617,6 +644,11 @@ export class SceneManager {
         // Update controls target
         this.controls.target.copy(center)
         this.controls.update()
+        
+        // Update navigation gizmo center
+        if (this.navigationGizmo) {
+            this.navigationGizmo.setCenter(center)
+        }
     }
     
     animate() {
@@ -645,7 +677,27 @@ export class SceneManager {
             }
         }
         
+        // Render the main scene
         this.renderer.render(this.scene, this.camera)
+        
+        // Update and render navigation gizmo
+        if (this.navigationGizmo) {
+            // Calculate delta time for smooth animation
+            const currentTime = performance.now()
+            if (!this.lastTime) this.lastTime = currentTime
+            const delta = (currentTime - this.lastTime) / 1000 // Convert to seconds
+            this.lastTime = currentTime
+            
+            // Update navigation gizmo animation
+            this.navigationGizmo.update(delta)
+            
+            // Render the navigation gizmo (after main scene)
+            try {
+                this.navigationGizmo.render(this.renderer)
+            } catch (error) {
+                console.warn('Error rendering navigation gizmo:', error)
+            }
+        }
     }
     
     onWindowResize() {
@@ -655,6 +707,12 @@ export class SceneManager {
         
         // Update gizmo size after window resize since canvas dimensions affect screen-size calculation
         this.updateGizmoOnCameraChange()
+        
+        // Update navigation gizmo container position if needed
+        if (this.navigationGizmo && this.navigationGizmo.container) {
+            // The navigation gizmo uses absolute positioning, so it should adapt automatically
+            // But we can trigger a re-render to ensure proper positioning
+        }
     }
     
     getRendererElement() {

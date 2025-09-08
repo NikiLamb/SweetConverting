@@ -545,6 +545,41 @@
     opacity: 0.9;
 }
 
+/* Navigation Gizmo Styles */
+#navigation-gizmo {
+    position: absolute !important;
+    top: 60px !important;
+    right: 10px !important;
+    width: 150px !important;
+    height: 150px !important;
+    z-index: 1000 !important;
+    pointer-events: auto !important;
+    border-radius: 8px;
+    background: transparent;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+#navigation-gizmo:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* Ensure navigation gizmo appears above other elements */
+.navigation-gizmo-container {
+    position: fixed;
+    top: 60px;
+    right: 10px;
+    width: 150px;
+    height: 150px;
+    z-index: 1001;
+    pointer-events: none;
+}
+
+.navigation-gizmo-container canvas {
+    pointer-events: auto;
+    border-radius: 8px;
+}
+
 /* Toolbar Styles */
 #toolbar-container {
     position: static;
